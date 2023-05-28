@@ -1,7 +1,10 @@
+#!/usr/bin/env python3
+
 from datetime import datetime, date
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.common.by import By
+import argparse
 import json
 import mimetypes
 import os
@@ -41,19 +44,30 @@ def capture_webpage_screenshots(param: dict) -> dict:
     image_paths[date_iso] = {}
 
     for i, place_id in enumerate(place_ids):
-        driver.get(f"https://www.nhk.or.jp/kishou-saigai/city/weather/{place_id}/")
+        driver.get(
+            f"https://www.nhk.or.jp/kishou-saigai/city/weather/{place_id}/")
 
         print(f'{param["places"][place_id]}の気象情報を取得しています。\n' +
               f'Retrieving from {driver.current_url}')
 
         time.sleep(1)
 
-        header = driver.find_element(By.CSS_SELECTOR, ".nr-common-header-wrapper")
-        the_menu = driver.find_element(By.CSS_SELECTOR, ".theMenu")
-        float_button = driver.find_element(By.CSS_SELECTOR, ".the-float-button-data-map")
+        header = driver.find_element(
+            By.CSS_SELECTOR, ".nr-common-header-wrapper")
+
+        the_menu = driver.find_element(
+            By.CSS_SELECTOR, ".theMenu")
+
+        float_button = driver.find_element(
+            By.CSS_SELECTOR, ".the-float-button-data-map")
+
+        weather_icon = driver.find_element(
+            By.CSS_SELECTOR, ".weatherLv3Forecast3Day_table_day1 img")
 
         if i == 0:
-            cookie_notice = driver.find_element(By.CSS_SELECTOR, "#notice_bottom_optout_announce_close")
+            cookie_notice = driver.find_element(
+                By.CSS_SELECTOR, "#notice_bottom_optout_announce_close")
+
             driver.execute_script(f"arguments[0].click();", cookie_notice)
 
         driver.execute_script(f"""document.body.style.zoom = '{s}';
@@ -61,12 +75,20 @@ def capture_webpage_screenshots(param: dict) -> dict:
                                   arguments[1].remove();
                                   arguments[2].remove();
                                   """,
-                                  header, the_menu, float_button)
+                              header, the_menu, float_button)
 
         time.sleep(1)
 
-        filename = next(generate_timestamped_path(param))
+        filename, filename_icon = next(generate_timestamped_path(param))
+
         image_paths[date_iso][place_id] = filename
+
+        image_paths[date_iso][place_id] = []
+        image_paths[date_iso][place_id].extend([filename, filename_icon])
+
+        weather_icon.screenshot(filename_icon)
+        time.sleep(1)
+
         driver.save_screenshot(filename)
 
         time.sleep(1)
@@ -79,13 +101,35 @@ def capture_webpage_screenshots(param: dict) -> dict:
     }
 
 
-def generate_timestamped_path(param: dict)->None:
+def generate_timestamped_path(param: dict) -> None:
     # ["/home/path/to/images/2023-05-27_08-50-38_12100001210400.png", ...]
     place_ids = param["places"].keys()
 
     for place_id in place_ids:
-        yield str(os.path.join( param["dirs"]["imageContainer"],
-                            f"{ datetime.now().strftime('%Y-%m-%d_%H-%M-%S') }_{ place_id }.png"))
+        parent = param["dirs"]["imageContainer"]
+        unique_id = f"{ datetime.now().strftime('%Y-%m-%d_%H-%M-%S') }_{ place_id }"
+        full_path_excluding_extension = str(
+            os.path.join(parent, f"{unique_id}"))
+
+        yield [
+            f"{full_path_excluding_extension}.png",
+            f"{full_path_excluding_extension}_icon.png"
+        ]
+
+
+def generate_timestamped_url(param: dict) -> None:
+    # ["/home/path/to/images/2023-05-27_08-50-38_12100001210400.png", ...]
+    place_ids = param["places"].keys()
+
+    for place_id in place_ids:
+        parent = param["upload"]["imageContainer"]
+        unique_id = f"{ datetime.now().strftime('%Y-%m-%d_%H-%M-%S') }_{ place_id }"
+        full_path_excluding_extension = f"{parent}/{unique_id}"
+
+        yield [
+            f"{full_path_excluding_extension}.png",
+            f"{full_path_excluding_extension}_icon.png"
+        ]
 
 
 def should_execute_operation(j: dict) -> bool:
@@ -120,73 +164,150 @@ def send_image_post_request(j: dict) -> str:
         j (dict): 最新の情報を含む辞書
 
     Returns:
-        str: サーバーからのレスポンステキスト。レスポンスがない場合は空文字を返します。
+        bool: サーバーからのレスポンステキストがすべて正常な時はTrue。
+        レスポンスがない場合はFalseを返します。
     """
     url = j['settings']['upload']['entryPoint']
 
-    image_paths = j['latest']['imagePaths']
-    files = [list(x.values())[-1] for x in image_paths.values()]
+    files = extract_files_for_upload(j)
 
     for file_path in files:
         mime_type, _ = mimetypes.guess_type(file_path)
-        file = {'file': (file_path, open(file_path, 'rb'), mime_type)}
+        file = {
+            'file': (file_path, open(file_path, 'rb'),
+                     mime_type)}
+
+        # リクエストを送信
         response = requests.post(url, files=file)
+        if response.text:
+            print(f'Image uploaded to {response.json()["permalink"]}')
+            # print(f'Image uploaded to {json.loads(response.text)["permalink"]}')
+        else:
+            return False
 
-        return response.text if response else ""
+    return True
 
 
-def main(j: dict) -> None:
+def extract_files_for_upload(j: dict) -> list:
+    a = j['latest']['imagePaths']
+    return [z
+            for x in a.values()
+            for y in x.values()
+            for z in y
+            ]
+
+
+def extract_files_for_webhook(j: dict) -> list:
+    a = j['latest']['imagePaths']
+    return [y
+            for x in a.values()
+            for y in x.values()
+            ]
+
+
+def main(j: dict, args) -> None:
     imagePaths = j['imagePaths']
     latest = j['latest']
 
+    # extract_files_for_upload(j)
+
     if not should_execute_operation(latest):
         print('Record already exists (' +
-             f'Last updated: {latest["lastUpdate"]})'
-        )
+              f'Last updated: {latest["lastUpdate"]})'
+              )
     else:
         # Keep responses
         response_capture = capture_webpage_screenshots(j['settings'])
 
-        if not response_capture == {}:
+        if not (response_capture['lastUpdate'] == "" or response_capture['imagePaths'] == {}):
             imagePaths.update(response_capture['imagePaths'])
 
             latest['done'] = True
             latest['lastUpdate'] = response_capture['lastUpdate']
             latest['imagePaths'] = response_capture['imagePaths']
 
-            with open('log.json', 'w', encoding="utf-8") as fp:
+            # 注: encoding を設定しないとUTF-8環境のWindowsで怒られる
+            #     UnicodeDecodeError: 'cp932' codec can't decode byte ...
+            with open(f'{args.profile}.json', 'w', encoding="utf-8") as fp:
                 dictionary_written = {
-                    "$README": j['$README'],
                     "settings": j['settings'],
                     "latest": latest,
                     "imagePaths": imagePaths
                 }
-                #print(json.dumps(dictionary_written, ensure_ascii=False, indent=2))
-                json.dump(dictionary_written, fp, ensure_ascii=False, indent=2)
+                # print(json.dumps(dictionary_written, ensure_ascii=False, indent=2))
+                json.dump(dictionary_written, fp,
+                          ensure_ascii=False, indent=2)
 
             if j['settings']['upload']['enabled']:
-                response_upload = send_image_post_request(j)
-                if response_upload:
-                    print(f'Image uploaded to {json.loads(response_upload)["permalink"]}')
-                else:
-                    print(f'Upload failed')
-        else:
-            print('Error!')
+                send_image_post_request(j)
+                pass
 
-    #print([settings, latest, imagePaths])
+            if j['settings']['webhook']['enabled']:
+                send_to_webhook(j)
+                pass
     pass
 
 
+def send_to_webhook(j: dict) -> None:
+
+    for i, place_ids in enumerate(j['settings']['places'].keys()):
+
+        url = j['settings']['webhook']['url']
+
+        filename, filename_icon = next(generate_timestamped_url(j['settings']))
+        pprint([filename, filename_icon])
+        data = {
+            "content": "",
+            "username": "NHK NEWS WEB",
+            "avatar_url": "https://pbs.twimg.com/profile_images/1232909058786484224/X8-z940J_400x400.png",
+            # "allowed_mentions": True,
+            "embeds": [{
+                "title": f"{j['settings']['places'][place_ids]} | 天気予報",
+                "description": f"全国 > 千葉県 > {j['settings']['places'][place_ids]}の天気",
+                "url": f"https://www.nhk.or.jp/kishou-saigai/city/weather/{place_ids}/",
+                "timestamp": f"{j['latest']['lastUpdate']}",
+                "color": 0x0076d1,
+                "image": {
+                    "url": f"{filename}"},
+                "thumbnail": {"url": f"{filename_icon}",
+                              # "height": 16,
+                              # #"width": 16
+                              },
+                "footer": {"text": "Deployed by Yokkin", 
+                           "icon_url": "https://yokkin.com/wp/wp-content/themes/Odamaki/files/img/website-logo.png"},
+                "author": {"name": "あなたの天気・防災"}
+            }]
+        }
+
+        r = requests.post(url, data=json.dumps(data), headers={
+                          "Content-Type": 'application/json'})
+
+        #print(r.text)
+
+
 if __name__ == "__main__":
-    # Open config file
-    with open('log.json', 'r', encoding="utf-8") as fp:
-        j = json.loads(fp.read())
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--profile', dest='profile', default='default', type=str,
+                        help='specify a file for configuration excluding an extention (default: "%(default)s")')
+    args = parser.parse_args()
 
-    if j['settings']['force']:
-        j['latest']['done'] = False
+    if (os.path.exists(f'{args.profile}.json')):
+        # Open config file
+        with open(f'{args.profile}.json', 'r', encoding="utf-8") as fp:
+            j = json.loads(fp.read())
 
-    # "done" は日付をまたいだ時に意味をなさないので必ずチェックにかける
-    if j['latest']['done']:
-        if not is_same_day(j['latest']['lastUpdate']):
+        if j['settings']['force']:
             j['latest']['done'] = False
-    main(j)
+
+        # "done" は日付をまたいだ時に意味をなさないので必ずチェックにかける
+        if j['latest']['done']:
+            if not is_same_day(j['latest']['lastUpdate']):
+                j['latest']['done'] = False
+
+        main(args=args, j=j)
+
+        # send_to_webhook(j)
+
+    else:
+        msg = f'Error: {args.profile}.json not found.'
+        print(msg)
