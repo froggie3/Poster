@@ -13,7 +13,7 @@ import time
 from pprint import pprint
 
 
-def capture_webpage_screenshots(param: dict) -> dict:
+def capture_webpage_screenshots(param: dict, paths: list) -> dict:
     """
     ウェブページのスクリーンショットを撮影し、画像を保存し、保存先のパスをログに残します。
 
@@ -41,7 +41,11 @@ def capture_webpage_screenshots(param: dict) -> dict:
     place_ids = param["places"].keys()
     image_paths = {}
     date_iso = datetime.now().isoformat()
+
+    # 前もってプロパティを作っておく
     image_paths[date_iso] = {}
+    for place_id in place_ids:
+        image_paths[date_iso][place_id] = []
 
     for i, place_id in enumerate(place_ids):
         driver.get(
@@ -79,14 +83,12 @@ def capture_webpage_screenshots(param: dict) -> dict:
 
         time.sleep(1)
 
-        filename, filename_icon = next(generate_timestamped_path(param))
+        filename, filename_icon = paths[i]
 
-        image_paths[date_iso][place_id] = filename
-
-        image_paths[date_iso][place_id] = []
         image_paths[date_iso][place_id].extend([filename, filename_icon])
 
         weather_icon.screenshot(filename_icon)
+
         time.sleep(1)
 
         driver.save_screenshot(filename)
@@ -101,35 +103,31 @@ def capture_webpage_screenshots(param: dict) -> dict:
     }
 
 
-def generate_timestamped_path(param: dict) -> None:
-    # ["/home/path/to/images/2023-05-27_08-50-38_12100001210400.png", ...]
+def create_parmalink_and_filepath(param: dict) -> dict:
     place_ids = param["places"].keys()
 
-    for place_id in place_ids:
-        parent = param["dirs"]["imageContainer"]
-        unique_id = f"{ datetime.now().strftime('%Y-%m-%d_%H-%M-%S') }_{ place_id }"
-        full_path_excluding_extension = str(
-            os.path.join(parent, f"{unique_id}"))
+    dictionary = {}
+    dictionary['path'] = []
+    dictionary['url'] = []
 
-        yield [
-            f"{full_path_excluding_extension}.png",
-            f"{full_path_excluding_extension}_icon.png"
-        ]
-
-
-def generate_timestamped_url(param: dict) -> None:
-    # ["/home/path/to/images/2023-05-27_08-50-38_12100001210400.png", ...]
-    place_ids = param["places"].keys()
+    cases = (
+        # https://
+        (param["upload"]["imageContainer"],),
+        # /path/to
+        (param["dirs"]["imageContainer"],)
+    )
 
     for place_id in place_ids:
-        parent = param["upload"]["imageContainer"]
         unique_id = f"{ datetime.now().strftime('%Y-%m-%d_%H-%M-%S') }_{ place_id }"
-        full_path_excluding_extension = f"{parent}/{unique_id}"
 
-        yield [
-            f"{full_path_excluding_extension}.png",
-            f"{full_path_excluding_extension}_icon.png"
-        ]
+        dictionary['url'].append((f"{cases[0][0]}/{unique_id}.png",
+                                  f"{cases[0][0]}/{unique_id}_icon.png",
+                                  ))
+        dictionary['path'].append((f"{cases[1][0]}/{unique_id}.png",
+                                   f"{cases[1][0]}/{unique_id}_icon.png",
+                                   ))
+
+    return dictionary
 
 
 def should_execute_operation(j: dict) -> bool:
@@ -197,27 +195,19 @@ def extract_files_for_upload(j: dict) -> list:
             ]
 
 
-def extract_files_for_webhook(j: dict) -> list:
-    a = j['latest']['imagePaths']
-    return [y
-            for x in a.values()
-            for y in x.values()
-            ]
-
-
 def main(j: dict, args) -> None:
     imagePaths = j['imagePaths']
     latest = j['latest']
-
-    # extract_files_for_upload(j)
 
     if not should_execute_operation(latest):
         print('Record already exists (' +
               f'Last updated: {latest["lastUpdate"]})'
               )
     else:
+        parmalinks_filepaths = create_parmalink_and_filepath(j['settings'])
+
         # Keep responses
-        response_capture = capture_webpage_screenshots(j['settings'])
+        response_capture = capture_webpage_screenshots(j['settings'], parmalinks_filepaths['path'])
 
         if not (response_capture['lastUpdate'] == "" or response_capture['imagePaths'] == {}):
             imagePaths.update(response_capture['imagePaths'])
@@ -226,8 +216,6 @@ def main(j: dict, args) -> None:
             latest['lastUpdate'] = response_capture['lastUpdate']
             latest['imagePaths'] = response_capture['imagePaths']
 
-            # 注: encoding を設定しないとUTF-8環境のWindowsで怒られる
-            #     UnicodeDecodeError: 'cp932' codec can't decode byte ...
             with open(f'{args.profile}.json', 'w', encoding="utf-8") as fp:
                 dictionary_written = {
                     "settings": j['settings'],
@@ -243,19 +231,21 @@ def main(j: dict, args) -> None:
                 pass
 
             if j['settings']['webhook']['enabled']:
-                send_to_webhook(j)
+                send_to_webhook(j, parmalinks_filepaths['url'])
                 pass
     pass
 
 
-def send_to_webhook(j: dict) -> None:
+def send_to_webhook(j: dict, urls: list) -> None:
 
     for i, place_ids in enumerate(j['settings']['places'].keys()):
 
         url = j['settings']['webhook']['url']
 
-        filename, filename_icon = next(generate_timestamped_url(j['settings']))
-        pprint([filename, filename_icon])
+        filename, filename_icon = urls[i]
+
+        # pprint([filename, filename_icon])
+
         data = {
             "content": "",
             "username": "NHK NEWS WEB",
@@ -273,22 +263,27 @@ def send_to_webhook(j: dict) -> None:
                               # "height": 16,
                               # #"width": 16
                               },
-                "footer": {"text": "Deployed by Yokkin", 
-                           "icon_url": "https://yokkin.com/wp/wp-content/themes/Odamaki/files/img/website-logo.png"},
+                "footer": {
+                    "text": "Deployed by Yokkin",
+                    "icon_url": "https://yokkin.com/wp/wp-content/themes/Odamaki/files/img/website-logo.png"},
                 "author": {"name": "あなたの天気・防災"}
             }]
         }
 
-        r = requests.post(url, data=json.dumps(data), headers={
-                          "Content-Type": 'application/json'})
+        response = requests.post(url, data=json.dumps(data), headers={
+            "Content-Type": 'application/json'})
 
-        #print(r.text)
+        if response:
+            # print(r.text)
+            pass
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+
     parser.add_argument('--profile', dest='profile', default='default', type=str,
                         help='specify a file for configuration excluding an extention (default: "%(default)s")')
+
     args = parser.parse_args()
 
     if (os.path.exists(f'{args.profile}.json')):
@@ -305,8 +300,6 @@ if __name__ == "__main__":
                 j['latest']['done'] = False
 
         main(args=args, j=j)
-
-        # send_to_webhook(j)
 
     else:
         msg = f'Error: {args.profile}.json not found.'
