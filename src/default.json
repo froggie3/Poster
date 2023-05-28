@@ -1,0 +1,34 @@
+{
+    "settings": {
+        "places": {
+            "13113001311300": "東京都渋谷区"
+        },
+        "dirs": {
+            "thisConfig": "",
+            "imageContainer": ""
+        },
+        "size": 0,
+        "binary": {
+            "location": "",
+            "arguments": [
+                "--headless=new"
+            ]
+        },
+        "upload": {
+            "enabled": false,
+            "entryPoint": "",
+            "imageContainer": ""
+        },
+        "webhook": {
+            "enabled": true,
+            "url": ""
+        },
+        "force": false
+    },
+    "latest": {
+        "lastUpdate": "",
+        "done": true,
+        "imagePaths": {}
+    },
+    "imagePaths": {}
+}
