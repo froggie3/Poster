@@ -1,0 +1,4 @@
+chromedriver-binary-auto
+pytest
+requests
+selenium
