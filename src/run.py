@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from datetime import datetime, date
+from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.common.by import By
