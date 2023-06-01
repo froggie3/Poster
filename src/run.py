@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from datetime import datetime
+from datetime import datetime, timezone
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.common.by import By
@@ -10,14 +10,16 @@ import mimetypes
 import os
 import requests
 import time
+from zoneinfo import ZoneInfo
 from pprint import pprint
 
 
-def capture_webpage_screenshots(param: dict, paths: list) -> dict:
+def capture_webpage_screenshots(paths: list, **param: dict) -> dict:
     """
     ウェブページのスクリーンショットを撮影し、画像を保存し、保存先のパスをログに残します。
 
     Args:
+        paths (list): Local paths for images
         param (dict): 操作のパラメータを含む辞書
 
     Returns:
@@ -31,8 +33,8 @@ def capture_webpage_screenshots(param: dict, paths: list) -> dict:
         s, w, h = window_scales[0]
 
     options = ChromeOptions()
-    options.binary_location = param['binary']['location']
-    for args in param['binary']['arguments']:
+    options.binary_location = param['binary_location']
+    for args in param['binary_arguments']:
         options.add_argument(args)
 
     driver = webdriver.Chrome(options=options)
@@ -40,7 +42,7 @@ def capture_webpage_screenshots(param: dict, paths: list) -> dict:
 
     place_ids = param["places"].keys()
     image_paths = {}
-    date_iso = datetime.now().isoformat()
+    date_iso = datetime.now(tz=ZoneInfo('Asia/Tokyo')).isoformat()
 
     # 前もってプロパティを作っておく
     image_paths[date_iso] = {}
@@ -103,71 +105,74 @@ def capture_webpage_screenshots(param: dict, paths: list) -> dict:
     }
 
 
-def create_parmalink_and_filepath(param: dict) -> dict:
-    place_ids = param["places"].keys()
+def create_parmalink_and_filepath(place_ids: list, dir_local: str, dir_remote: str) -> dict:
+    """
+    Create parmalink URLs for images to be uploaded and its local filepaths.
 
+    Args:
+        place_ids (list): A list containing location IDs each of which consists from 14 digit numbers
+        dir_local (str): Local path for image to be contained: (Example: "/example/image/to")
+        dir_remote (str): Remote path for image to be contained: (Example: "https://example.com/image/to/")
+
+    Returns:
+        A dictionary that contains both local and remote paths for images.
+    """
     dictionary = {}
     dictionary['path'] = []
     dictionary['url'] = []
 
-    cases = (
-        # https://
-        (param["upload"]["imageContainer"],),
-        # /path/to
-        (param["dirs"]["imageContainer"],)
-    )
-
     for place_id in place_ids:
-        unique_id = f"{ datetime.now().strftime('%Y-%m-%d_%H-%M-%S') }_{ place_id }"
+        unique_id = f"{ datetime.now(tz=ZoneInfo('Asia/Tokyo')).strftime('%Y-%m-%d_%H-%M-%S') }_{ place_id }"
 
-        dictionary['url'].append((f"{cases[0][0]}/{unique_id}.png",
-                                  f"{cases[0][0]}/{unique_id}_icon.png",
+        dictionary['url'].append((f"{dir_remote}/{unique_id}.png",
+                                  f"{dir_remote}/{unique_id}_icon.png",
                                   ))
-        dictionary['path'].append((f"{cases[1][0]}/{unique_id}.png",
-                                   f"{cases[1][0]}/{unique_id}_icon.png",
+        dictionary['path'].append((f"{dir_local}/{unique_id}.png",
+                                   f"{dir_local}/{unique_id}_icon.png",
                                    ))
 
     return dictionary
 
 
-def should_execute_operation(j: dict) -> bool:
-    if not j['done']:
+def should_execute_operation(done: bool) -> bool:
+    if not done:
         return True
 
     # 実行される操作はないので False を返す
     return False
 
 
-def is_same_day(last_update: str) -> bool:
-    """
-    最後の更新日と現在の日付が同じかどうかを判定します。
+def needs_update(last_update: str, **kwargs) -> bool:
+    last = datetime.fromisoformat(last_update)
+    today = datetime.now(tz=ZoneInfo('Asia/Tokyo'))
 
-    Args:
-        last_update (str): 最後の更新日時の文字列（例: "2023-05-27T13:50:40+09:00"）
+    delta = today - last
 
-    Returns:
-        bool: 最後の更新日と現在の日付が同じ場合は True、異なる場合は False を返します。
-    """
-    compare_date = datetime.fromisoformat(last_update).date()
-    today = datetime.today().date()
+    if delta.days < 1:
+        # Within a day, needs to be updated if delta time more than setting
+        return delta.seconds <= calc_seconds_from_config(kwargs=kwargs) 
+    else:
+        # Just a day ago
+        return True
 
-    return compare_date == today
+def calc_seconds_from_config(**kwargs) -> int:
+    interval_hours, interval_minutes = kwargs['interval'].values()
+    return 3600 * interval_hours + 60 * interval_minutes
 
-
-def send_image_post_request(j: dict) -> str:
+def send_image_post_request(url: str, image_paths: list) -> str:
     """
     指定されたURLに対して画像ファイルをPOSTリクエストで送信し、レスポンスを返します。
 
     Args:
-        j (dict): 最新の情報を含む辞書
+        url: POST先のURL
+        image_paths: 送信する画像のリスト
 
     Returns:
         bool: サーバーからのレスポンステキストがすべて正常な時はTrue。
         レスポンスがない場合はFalseを返します。
     """
-    url = j['settings']['upload']['entryPoint']
 
-    files = extract_files_for_upload(j)
+    files = extract_files_for_upload(image_paths)
 
     for file_path in files:
         mime_type, _ = mimetypes.guess_type(file_path)
@@ -186,10 +191,9 @@ def send_image_post_request(j: dict) -> str:
     return True
 
 
-def extract_files_for_upload(j: dict) -> list:
-    a = j['latest']['imagePaths']
+def extract_files_for_upload(image_paths: dict) -> list:
     return [z
-            for x in a.values()
+            for x in image_paths.values()
             for y in x.values()
             for z in y
             ]
@@ -199,15 +203,27 @@ def main(j: dict, args) -> None:
     imagePaths = j['imagePaths']
     latest = j['latest']
 
-    if not should_execute_operation(latest):
+    if not should_execute_operation(j['latest']['done']):
         print('Record already exists (' +
               f'Last updated: {latest["lastUpdate"]})'
               )
     else:
-        parmalinks_filepaths = create_parmalink_and_filepath(j['settings'])
+        parmalinks_filepaths = create_parmalink_and_filepath(
+            place_ids=list(j["settings"]["places"].keys()),
+            dir_local=j["settings"]["dirs"]["imageContainer"],
+            dir_remote=j["settings"]["upload"]["imageContainer"],
+        )
 
         # Keep responses
-        response_capture = capture_webpage_screenshots(j['settings'], parmalinks_filepaths['path'])
+        response_capture = capture_webpage_screenshots(
+            paths=parmalinks_filepaths['path'],
+            **{
+                "size": j['settings']['size'],
+                "places": j["settings"]["places"],
+                "binary_location": j["settings"]["binary"]["location"],
+                "binary_arguments": j["settings"]["binary"]["arguments"],
+            },
+        )
 
         if not (response_capture['lastUpdate'] == "" or response_capture['imagePaths'] == {}):
             imagePaths.update(response_capture['imagePaths'])
@@ -227,20 +243,30 @@ def main(j: dict, args) -> None:
                           ensure_ascii=False, indent=2)
 
             if j['settings']['upload']['enabled']:
-                send_image_post_request(j)
+                send_image_post_request(
+                    image_paths=latest['imagePaths'],
+                    url=j['settings']['upload']['entryPoint']
+                )
                 pass
 
             if j['settings']['webhook']['enabled']:
-                send_to_webhook(j, parmalinks_filepaths['url'])
+                send_to_webhook(**{
+                    "webhook_url": j['settings']['webhook']['url'],
+                    "last_update": latest['lastUpdate'],
+                    "place_ids": j['settings']['places'],
+                }, urls=parmalinks_filepaths['url'])
                 pass
     pass
 
 
-def send_to_webhook(j: dict, urls: list) -> None:
+def send_to_webhook(urls: list, **kwargs) -> None:
 
-    for i, place_ids in enumerate(j['settings']['places'].keys()):
+    place_ids = kwargs['place_ids']
+    last_timestamp = kwargs['last_update']
 
-        url = j['settings']['webhook']['url']
+    for i, place_id in enumerate(place_ids.keys()):
+
+        url = kwargs['webhook_url']
 
         filename, filename_icon = urls[i]
 
@@ -252,10 +278,10 @@ def send_to_webhook(j: dict, urls: list) -> None:
             "avatar_url": "https://pbs.twimg.com/profile_images/1232909058786484224/X8-z940J_400x400.png",
             # "allowed_mentions": True,
             "embeds": [{
-                "title": f"{j['settings']['places'][place_ids]} | 天気予報",
-                "description": f"全国 > 千葉県 > {j['settings']['places'][place_ids]}の天気",
-                "url": f"https://www.nhk.or.jp/kishou-saigai/city/weather/{place_ids}/",
-                "timestamp": f"{j['latest']['lastUpdate']}",
+                "title": f"{place_ids[place_id]} | 天気予報",
+                "description": f"全国 > 千葉県 > {place_ids[place_id]}の天気",
+                "url": f"https://www.nhk.or.jp/kishou-saigai/city/weather/{place_id}/",
+                "timestamp": f"{last_timestamp}",
                 "color": 0x0076d1,
                 "image": {
                     "url": f"{filename}"},
@@ -270,8 +296,10 @@ def send_to_webhook(j: dict, urls: list) -> None:
             }]
         }
 
-        response = requests.post(url, data=json.dumps(data), headers={
-            "Content-Type": 'application/json'})
+        headers = {
+            "Content-Type": 'application/json'
+        }
+        response = requests.post(url, data=json.dumps(data), headers=headers)
 
         if response:
             # print(r.text)
@@ -296,7 +324,11 @@ if __name__ == "__main__":
 
         # "done" は日付をまたいだ時に意味をなさないので必ずチェックにかける
         if j['latest']['done']:
-            if not is_same_day(j['latest']['lastUpdate']):
+            if not needs_update(j['latest']['lastUpdate'],
+                                **{"interval": {
+                                    'interval_hours': j['settings']['interval']['hours'],
+                                    'interval_minutes': j['settings']['interval']['minutes']
+                                }}):
                 j['latest']['done'] = False
 
         main(args=args, j=j)
