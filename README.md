@@ -3,12 +3,10 @@
 This tools allows you to capture the forecast on NHK NEWS Web, and then post to Discord.
 
 ## Setup
-```
-python -m venv .venv/ 
-source .venv/bin/activate
-pip install -r requirements.txt
-```
 
-## Todo
+You can set up this tool in this way below;
 
-* `pytest` でテストを書く
+```
+python -m venv .venv
+make install
+```

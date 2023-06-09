@@ -75,6 +75,12 @@ def capture_webpage_screenshots(paths: list, **param: dict) -> dict:
         weather_icon = driver.find_element(
             By.CSS_SELECTOR, ".weatherLv3Forecast3Day_table_day1 img")
 
+        banner_image = driver.find_element(
+            By.CSS_SELECTOR, ".balloon")
+
+        title_subBlock = driver.find_element(
+            By.CSS_SELECTOR, ".theWeatherLv3_title_subBlock")
+
         if i == 0:
             cookie_notice = driver.find_element(
                 By.CSS_SELECTOR, "#notice_bottom_optout_announce_close")
@@ -85,8 +91,14 @@ def capture_webpage_screenshots(paths: list, **param: dict) -> dict:
                                   arguments[0].remove();
                                   arguments[1].remove();
                                   arguments[2].remove();
+                                  arguments[3].remove();
+                                  arguments[4].remove();
                                   """,
-                              header, the_menu, float_button)
+                              header,
+                              the_menu,
+                              float_button,
+                              banner_image,
+                              title_subBlock)
 
         time.sleep(1)
 
