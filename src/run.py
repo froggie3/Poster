@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.common.by import By
+from typing import Dict, List, Generator
 import argparse
 import json
 import mimetypes
@@ -25,7 +26,11 @@ def capture_webpage_screenshots(paths: list, **param: dict) -> dict:
     Returns:
         dict: 撮影日時と画像の保存先パスを記録した辞書。撮影が行われなかった場合は空の辞書を返します。
     """
-    window_scales = [(1.0, 1100, 800), (1.5, 1650, 1200), (2.0, 2200, 1600)]
+    window_scales = [
+        (1.0, 1100, 800),
+        (1.5, 1650, 1200),
+        (2.0, 2200, 1600)
+    ]
 
     if (param["size"] in [0, 1, 2]):
         s, w, h = window_scales[param["size"]]
@@ -124,12 +129,18 @@ def create_parmalink_and_filepath(place_ids: list, dir_local: str, dir_remote: s
     for place_id in place_ids:
         unique_id = f"{ datetime.now(tz=ZoneInfo('Asia/Tokyo')).strftime('%Y-%m-%d_%H-%M-%S') }_{ place_id }"
 
-        dictionary['url'].append((f"{dir_remote}/{unique_id}.png",
-                                  f"{dir_remote}/{unique_id}_icon.png",
-                                  ))
-        dictionary['path'].append((f"{dir_local}/{unique_id}.png",
-                                   f"{dir_local}/{unique_id}_icon.png",
-                                   ))
+        dictionary['url'].append(
+            (
+                f"{dir_remote}/{unique_id}.png",
+                f"{dir_remote}/{unique_id}_icon.png"
+            )
+        )
+        dictionary['path'].append(
+            (
+                f"{dir_local}/{unique_id}.png",
+                f"{dir_local}/{unique_id}_icon.png",
+            )
+        )
 
     return dictionary
 
@@ -142,22 +153,20 @@ def should_execute_operation(done: bool) -> bool:
     return False
 
 
-def needs_update(last_update: str, **kwargs) -> bool:
+def needs_update(last_update: str, interval: dict[str, dict[str, int]]) -> bool:
     last = datetime.fromisoformat(last_update)
     today = datetime.now(tz=ZoneInfo('Asia/Tokyo'))
 
-    delta = today - last
+    # print([
+    #        calc_seconds_from_config(**interval),
+    #        (last - today).total_seconds()])
 
-    if delta.days < 1:
-        # Within a day, needs to be updated if delta time more than setting
-        return delta.seconds <= calc_seconds_from_config(kwargs=kwargs) 
-    else:
-        # Just a day ago
-        return True
+    return calc_seconds_from_config(**interval) <= (last - today).total_seconds()
 
-def calc_seconds_from_config(**kwargs) -> int:
-    interval_hours, interval_minutes = kwargs['interval'].values()
-    return 3600 * interval_hours + 60 * interval_minutes
+
+def calc_seconds_from_config(hours: int, minutes: int) -> int:
+    return 3600 * hours + 60 * minutes
+
 
 def send_image_post_request(url: str, image_paths: list) -> str:
     """
@@ -204,9 +213,10 @@ def main(j: dict, args) -> None:
     latest = j['latest']
 
     if not should_execute_operation(j['latest']['done']):
-        print('Record already exists (' +
-              f'Last updated: {latest["lastUpdate"]})'
-              )
+        print(
+            'Record already exists (' +
+            f'Last updated: {latest["lastUpdate"]})'
+        )
     else:
         parmalinks_filepaths = create_parmalink_and_filepath(
             place_ids=list(j["settings"]["places"].keys()),
@@ -285,14 +295,18 @@ def send_to_webhook(urls: list, **kwargs) -> None:
                 "color": 0x0076d1,
                 "image": {
                     "url": f"{filename}"},
-                "thumbnail": {"url": f"{filename_icon}",
-                              # "height": 16,
-                              # #"width": 16
-                              },
+                "thumbnail": {
+                    "url": f"{filename_icon}",
+                    # "height": 16,
+                    # #"width": 16
+                },
                 "footer": {
                     "text": "Deployed by Yokkin",
-                    "icon_url": "https://yokkin.com/wp/wp-content/themes/Odamaki/files/img/website-logo.png"},
-                "author": {"name": "あなたの天気・防災"}
+                    "icon_url": "https://yokkin.com/wp/wp-content/themes/Odamaki/files/img/website-logo.png"
+                },
+                "author": {
+                    "name": "あなたの天気・防災"
+                }
             }]
         }
 
@@ -309,8 +323,13 @@ def send_to_webhook(urls: list, **kwargs) -> None:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--profile', dest='profile', default='default', type=str,
-                        help='specify a file for configuration excluding an extention (default: "%(default)s")')
+    parser.add_argument(
+        '--profile',
+        dest='profile',
+        default='default',
+        type=str,
+        help='specify a file for configuration excluding an extention (default: "%(default)s")'
+    )
 
     args = parser.parse_args()
 
@@ -324,11 +343,12 @@ if __name__ == "__main__":
 
         # "done" は日付をまたいだ時に意味をなさないので必ずチェックにかける
         if j['latest']['done']:
-            if not needs_update(j['latest']['lastUpdate'],
-                                **{"interval": {
-                                    'interval_hours': j['settings']['interval']['hours'],
-                                    'interval_minutes': j['settings']['interval']['minutes']
-                                }}):
+            if not needs_update(
+                    j['latest']['lastUpdate'],
+                    {
+                        'hours':   j['settings']['interval']['hours'],
+                        'minutes': j['settings']['interval']['minutes']
+                    }):
                 j['latest']['done'] = False
 
         main(args=args, j=j)

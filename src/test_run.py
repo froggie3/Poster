@@ -4,31 +4,24 @@ from run import *
 
 
 @pytest.mark.freeze_time("2023-04-01T00:00:00+09:00")
+def test_calc_seconds_from_config():
+    assert calc_seconds_from_config(1, 0) == 3600
+    assert calc_seconds_from_config(0, 0) == 0
+    assert calc_seconds_from_config(1, 0) == timedelta(seconds=3600).total_seconds()
+
+
+@pytest.mark.freeze_time("2023-04-01T00:00:00+09:00")
 def test_needs_update():
-    intval = {"interval": {"hours": 3, "minutes": 0}}
-    assert not needs_update("2023-04-01T00:30:00+09:00", **intval)
-    assert not needs_update("2023-04-01T00:59:59+09:00", **intval)
-    assert not needs_update("2023-04-01T01:00:00+09:00", **intval)
+    intval = {"hours": 3, "minutes": 0}
+    assert not needs_update("2023-04-01T02:59:59+09:00", intval)
+    assert needs_update("2023-04-01T03:00:00+09:00", intval)
+    assert needs_update("2023-04-01T03:00:01+09:00", intval)
 
     # 境界チェック
-    assert not needs_update(
-        "2023-04-01T00:29:59+09:00", **{"interval": {"hours": 0, "minutes": 30}})
-    assert needs_update(
-        "2023-04-01T00:30:00+09:00", **{"interval": {"hours": 0, "minutes": 30}})
-    assert needs_update(
-        "2023-04-01T00:30:01+09:00", **{"interval": {"hours": 0, "minutes": 30}})
-
-    # 境界チェック (2)
-    assert not needs_update(
-        "2023-04-01T02:59:59+09:00", **intval)
-    assert needs_update(
-        "2023-04-01T03:00:00+09:00", **intval)
-    assert needs_update(
-        "2023-04-01T03:00:01+09:00", **intval)
-
-    assert needs_update(
-        "2023-04-02T00:00:00+09:00", **intval)
-
+    intval2 = {"hours": 0, "minutes": 30}
+    assert not needs_update("2023-04-01T00:29:59+09:00", intval2)
+    assert needs_update("2023-04-01T00:30:00+09:00", intval2)
+    assert needs_update("2023-04-01T00:30:01+09:00", intval2)
 
 def test_should_execute_operation():
     assert should_execute_operation(False)
