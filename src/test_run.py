@@ -17,7 +17,6 @@ def test_needs_update():
     assert needs_update("2023-04-01T03:00:00+09:00", intval)
     assert needs_update("2023-04-01T03:00:01+09:00", intval)
 
-    # 境界チェック
     intval2 = {"hours": 0, "minutes": 30}
     assert not needs_update("2023-04-01T00:29:59+09:00", intval2)
     assert needs_update("2023-04-01T00:30:00+09:00", intval2)
