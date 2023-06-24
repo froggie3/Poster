@@ -5,6 +5,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options as ChromeOptions
 from selenium.webdriver.common.by import By
 from typing import Dict, List, Generator
+from dotenv import load_dotenv
 import argparse
 import json
 import mimetypes
@@ -254,7 +255,7 @@ def main(j: dict, args) -> None:
             latest['lastUpdate'] = response_capture['lastUpdate']
             latest['imagePaths'] = response_capture['imagePaths']
 
-            with open(f'{args.profile}.json', 'w', encoding="utf-8") as fp:
+            with open(os.environ.get('FORECAST_CONFIG'), 'w', encoding="utf-8") as fp:
                 dictionary_written = {
                     "settings": j['settings'],
                     "latest": latest,
@@ -301,7 +302,7 @@ def send_to_webhook(urls: list, **kwargs) -> None:
             # "allowed_mentions": True,
             "embeds": [{
                 "title": f"{place_ids[place_id]} | 天気予報",
-                "description": f"全国 > 千葉県 > {place_ids[place_id]}の天気",
+                "description": f"3時間おきに天気予報をお伝えします",
                 "url": f"https://www.nhk.or.jp/kishou-saigai/city/weather/{place_id}/",
                 "timestamp": f"{last_timestamp}",
                 "color": 0x0076d1,
@@ -333,21 +334,17 @@ def send_to_webhook(urls: list, **kwargs) -> None:
 
 
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser()
 
-    parser.add_argument(
-        '--profile',
-        dest='profile',
-        default='default',
-        type=str,
-        help='specify a file for configuration excluding an extention (default: "%(default)s")'
-    )
-
+    # specify a file for configuration excluding an extention (default: "%(default)s")
     args = parser.parse_args()
 
-    if (os.path.exists(f'{args.profile}.json')):
+    load_dotenv()
+
+    if (os.path.exists(os.environ.get('FORECAST_CONFIG'))):
         # Open config file
-        with open(f'{args.profile}.json', 'r', encoding="utf-8") as fp:
+        with open(os.environ.get('FORECAST_CONFIG'), 'r', encoding="utf-8") as fp:
             j = json.loads(fp.read())
 
         if j['settings']['force']:
@@ -366,5 +363,5 @@ if __name__ == "__main__":
         main(args=args, j=j)
 
     else:
-        msg = f'Error: {args.profile}.json not found.'
+        msg = f'Error: {os.environ.get("FORECAST_CONFIG")} not found.'
         print(msg)

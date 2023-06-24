@@ -1,8 +1,6 @@
-PROFILE = src/personal
-
 default:
 	source .venv/bin/activate; \
-	python src/run.py --profile ${PROFILE}
+	python src/run.py
 
 test:
 	source .venv/bin/activate; \
@@ -10,4 +8,4 @@ test:
 
 install:
 	source ./venv/bin/activate; \
-    pip install -r requirements.txt
+    rye sync
