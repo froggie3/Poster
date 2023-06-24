@@ -1,0 +1,25 @@
+[project]
+name = "forecast-auto-post"
+version = "0.1.0"
+description = "This tools allows to capture screenshot of the forecast on NHK NEWS Web, and then post to Discord."
+authors = [
+    { name = "froggie3", email = "inquiry@yokkin.com" }
+]
+dependencies = [
+    "python-dotenv>=1.0.0",
+    "pytest>=7.4.0",
+    "selenium>=4.10.0",
+    "requests>=2.31.0",
+]
+readme = "README.md"
+requires-python = ">= 3.8"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.rye]
+managed = true
+
+[tool.hatch.metadata]
+allow-direct-references = true
