@@ -2,5 +2,7 @@
 .venv/
 images/
 
+index.php
+.env
 makefile
 src/__pycache__
