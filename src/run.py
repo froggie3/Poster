@@ -1,11 +1,7 @@
 #!/usr/bin/env python3
 
 from datetime import datetime, timezone, timedelta
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options as ChromeOptions
-from selenium.webdriver.common.by import By
 from typing import Dict, List, Generator
-from dotenv import load_dotenv
 import argparse
 import json
 import mimetypes
@@ -14,114 +10,10 @@ import requests
 import time
 from zoneinfo import ZoneInfo
 from pprint import pprint
+import logging
 
-
-def capture_webpage_screenshots(paths: list, **param: dict) -> dict:
-    """
-    ウェブページのスクリーンショットを撮影し、画像を保存し、保存先のパスをログに残します。
-
-    Args:
-        paths (list): Local paths for images
-        param (dict): 操作のパラメータを含む辞書
-
-    Returns:
-        dict: 撮影日時と画像の保存先パスを記録した辞書。撮影が行われなかった場合は空の辞書を返します。
-    """
-    window_scales = [
-        (1.0, 1100, 800),
-        (1.5, 1650, 1200),
-        (2.0, 2200, 1600)
-    ]
-
-    if (param["size"] in [0, 1, 2]):
-        s, w, h = window_scales[param["size"]]
-    else:
-        s, w, h = window_scales[0]
-
-    options = ChromeOptions()
-    options.binary_location = param['binary_location']
-    for args in param['binary_arguments']:
-        options.add_argument(args)
-
-    driver = webdriver.Chrome(options=options)
-    driver.set_window_size(w, h)
-
-    place_ids = param["places"].keys()
-    image_paths = {}
-    date_iso = datetime.now(tz=ZoneInfo('Asia/Tokyo')).isoformat()
-
-    # 前もってプロパティを作っておく
-    image_paths[date_iso] = {}
-    for place_id in place_ids:
-        image_paths[date_iso][place_id] = []
-
-    for i, place_id in enumerate(place_ids):
-        driver.get(
-            f"https://www.nhk.or.jp/kishou-saigai/city/weather/{place_id}/")
-
-        print(f'{param["places"][place_id]}の気象情報を取得しています。\n' +
-              f'Retrieving from {driver.current_url}')
-
-        time.sleep(1)
-
-        header = driver.find_element(
-            By.CSS_SELECTOR, ".nr-common-header-wrapper")
-
-        the_menu = driver.find_element(
-            By.CSS_SELECTOR, ".theMenu")
-
-        float_button = driver.find_element(
-            By.CSS_SELECTOR, ".the-float-button-data-map")
-
-        weather_icon = driver.find_element(
-            By.CSS_SELECTOR, ".weatherLv3Forecast3Day_table_day1 img")
-
-        banner_image = driver.find_element(
-            By.CSS_SELECTOR, ".balloon")
-
-        title_subBlock = driver.find_element(
-            By.CSS_SELECTOR, ".theWeatherLv3_title_subBlock")
-
-        if i == 0:
-            cookie_notice = driver.find_element(
-                By.CSS_SELECTOR, "#notice_bottom_optout_announce_close")
-
-            driver.execute_script(f"arguments[0].click();", cookie_notice)
-
-        driver.execute_script(f"""document.body.style.zoom = '{s}';
-                                  arguments[0].remove();
-                                  arguments[1].remove();
-                                  arguments[2].remove();
-                                  arguments[3].remove();
-                                  arguments[4].remove();
-                                  """,
-                              header,
-                              the_menu,
-                              float_button,
-                              banner_image,
-                              title_subBlock)
-
-        time.sleep(1)
-
-        filename, filename_icon = paths[i]
-
-        image_paths[date_iso][place_id].extend([filename, filename_icon])
-
-        weather_icon.screenshot(filename_icon)
-
-        time.sleep(1)
-
-        driver.save_screenshot(filename)
-
-        time.sleep(1)
-
-    driver.quit()
-
-    return {
-        "lastUpdate": date_iso,
-        "imagePaths": image_paths
-    }
-
+from capture import * 
+import setting
 
 def create_parmalink_and_filepath(place_ids: list, dir_local: str, dir_remote: str) -> dict:
     """
@@ -158,107 +50,72 @@ def create_parmalink_and_filepath(place_ids: list, dir_local: str, dir_remote: s
     return dictionary
 
 
-def should_execute_operation(done: bool) -> bool:
-    if not done:
-        return True
-
-    # 実行される操作はないので False を返す
-    return False
+class ImageUploader:
+    def __init__(self):
+        pass
 
 
-def needs_update(last_update: str, interval: dict[str, dict[str, int]]) -> bool:
-    last = datetime.fromisoformat(last_update)
-    today = datetime.now(tz=ZoneInfo('Asia/Tokyo'))
-
-    # print([
-    #        calc_seconds_from_config(**interval),
-    #        (last - today).total_seconds()])
-
-    return calc_seconds_from_config(**interval) <= (last - today).total_seconds()
-
-
-def calc_seconds_from_config(hours: int, minutes: int) -> int:
-    return 3600 * hours + 60 * minutes
-
-
-def send_image_post_request(url: str, image_paths: list) -> str:
-    """
-    指定されたURLに対して画像ファイルをPOSTリクエストで送信し、レスポンスを返します。
-
-    Args:
-        url: POST先のURL
-        image_paths: 送信する画像のリスト
-
-    Returns:
-        bool: サーバーからのレスポンステキストがすべて正常な時はTrue。
-        レスポンスがない場合はFalseを返します。
-    """
-
-    files = extract_files_for_upload(image_paths)
-
-    for file_path in files:
+    def post(self, url, file_path):
         mime_type, _ = mimetypes.guess_type(file_path)
+        data = open(file_path, 'rb')
         file = {
-            'file': (file_path, open(file_path, 'rb'),
-                     mime_type)}
-
-        # リクエストを送信
+            'file': (file_path, data, mime_type)
+        }
         response = requests.post(url, files=file)
         if response.text:
-            print(f'Image uploaded to {response.json()["permalink"]}')
-            # print(f'Image uploaded to {json.loads(response.text)["permalink"]}')
-        else:
-            return False
-
-    return True
+            logging.debug(f'Image uploaded to {response.json()["permalink"]}')
+            return response.text
+        return None 
 
 
-def extract_files_for_upload(image_paths: dict) -> list:
-    return [z
-            for x in image_paths.values()
-            for y in x.values()
-            for z in y
-            ]
+    def send_image_post_request(self, url, image_paths: list) -> str:
+        logging.debug(f"url={url}")
+        files = self.extract_files_for_upload(image_paths)
+        for file_path in files:
+            logging.debug(f"filepath={filepath}")
+            self.post(url, file_path) 
+
+
+    def extract_files_for_upload(self, image_paths: dict) -> list:
+        return [z
+                for x in image_paths.values()
+                for y in x.values()
+                for z in y
+                ]
 
 
 def main(j: dict, args) -> None:
     imagePaths = j['imagePaths']
     latest = j['latest']
 
-    if not should_execute_operation(j['latest']['done']):
-        print(
-            'Record already exists (' +
-            f'Last updated: {latest["lastUpdate"]})'
-        )
-    else:
-        parmalinks_filepaths = create_parmalink_and_filepath(
-            place_ids=list(j["settings"]["places"].keys()),
-            dir_local=j["settings"]["dirs"]["imageContainer"],
-            dir_remote=j["settings"]["upload"]["imageContainer"],
-        )
+    parmalinks_filepaths = create_parmalink_and_filepath(
+        place_ids=list(j["settings"]["places"].keys()),
+        dir_local=j["settings"]["dirs"]["imageContainer"],
+        dir_remote=j["settings"]["upload"]["imageContainer"],
+    )
 
-        # Keep responses
-        response_capture = capture_webpage_screenshots(
-            paths=parmalinks_filepaths['path'],
-            **{
-                "size": j['settings']['size'],
-                "places": j["settings"]["places"],
-                "binary_location": j["settings"]["binary"]["location"],
-                "binary_arguments": j["settings"]["binary"]["arguments"],
-            },
-        )
+    # Keep responses
+    response_capture = capture_webpage_screenshots(
+        paths=parmalinks_filepaths['path'],
+        **{
+            "size": j['settings']['size'],
+            "places": j["settings"]["places"],
+            "binary_location": j["settings"]["binary"]["location"],
+            "binary_arguments": j["settings"]["binary"]["arguments"],
+        },
+    )
 
-        if not (response_capture['lastUpdate'] == "" or response_capture['imagePaths'] == {}):
-            imagePaths.update(response_capture['imagePaths'])
+    if not (response_capture['lastUpdate'] == "" or response_capture['imagePaths'] == {}):
+        imagePaths.update(response_capture['imagePaths'])
 
-            latest['done'] = True
-            latest['lastUpdate'] = response_capture['lastUpdate']
-            latest['imagePaths'] = response_capture['imagePaths']
+        latest['done'] = True
+        latest['lastUpdate'] = response_capture['lastUpdate']
+        latest['imagePaths'] = response_capture['imagePaths']
 
-            with open(os.environ.get('FORECAST_CONFIG'), 'w', encoding="utf-8") as fp:
-                dictionary_written = {
-                    "settings": j['settings'],
-                    "latest": latest,
+        with open(os.environ.get('FORECAST_CONFIG'), 'w', encoding="utf-8") as fp:
+            dictionary_written = {
+                "settings": j['settings'],
+                "latest": latest,
                     "imagePaths": imagePaths
                 }
                 # print(json.dumps(dictionary_written, ensure_ascii=False, indent=2))
@@ -281,87 +138,87 @@ def main(j: dict, args) -> None:
                 pass
     pass
 
+class WebhookPosting:
+    def __init__(self):
+        self.headers = { "Content-Type": 'application/json' }
+        self.webhook_url = "" 
 
-def send_to_webhook(urls: list, **kwargs) -> None:
 
-    place_ids = kwargs['place_ids']
-    last_timestamp = kwargs['last_update']
+    def post(self, url, payload, headers):
+        response = requests.post(url, data=payload, headers=headers)
+        return response
 
-    for i, place_id in enumerate(place_ids.keys()):
 
-        url = kwargs['webhook_url']
+    def prepare_request(self, images) -> str:
+        data = self.prepare_payload(*images)
+        json_text = json.dumps({})
+        if data:
+            json_text = json.dumps(data) 
+            return json_text 
+        return json_text
 
-        filename, filename_icon = urls[i]
 
-        # pprint([filename, filename_icon])
+class WebhookNHKNews(WebhookPosting):
+    def __init__(self):
+        pass
 
-        data = {
+    def prepare_payload(self, filename, filename_icon) -> dict:
+        logging.warning(f"filename={filename}, filename_icon={filename_icon}")
+        payload = {
             "content": "",
             "username": "NHK NEWS WEB",
-            "avatar_url": "https://pbs.twimg.com/profile_images/1232909058786484224/X8-z940J_400x400.png",
-            # "allowed_mentions": True,
+            "avatar_url": "https://pbs.twimg.com/profile_images" \
+                          "/1232909058786484224/X8-z940J_400x400.png",
             "embeds": [{
                 "title": f"{place_ids[place_id]} | 天気予報",
-                "description": f"3時間おきに天気予報をお伝えします",
-                "url": f"https://www.nhk.or.jp/kishou-saigai/city/weather/{place_id}/",
-                "timestamp": f"{last_timestamp}",
+                "description": "3時間おきに天気予報をお伝えします",
+                "url": "https://www.nhk.or.jp/kishou-saigai/city/weather/" \
+                        place_id,
+                "timestamp": self.last_timestamp,
                 "color": 0x0076d1,
                 "image": {
-                    "url": f"{filename}"},
+                    "url": filename,
+                },
                 "thumbnail": {
-                    "url": f"{filename_icon}",
-                    # "height": 16,
-                    # #"width": 16
+                    "url": filename_icon,
                 },
                 "footer": {
                     "text": "Deployed by Yokkin",
-                    "icon_url": "https://yokkin.com/wp/wp-content/themes/Odamaki/files/img/website-logo.png"
+                    "icon_url": "https://yokkin.com/wp/wp-content/" \
+                                "themes/Odamaki/files/img/website-logo.png"
                 },
                 "author": {
                     "name": "あなたの天気・防災"
                 }
             }]
         }
+        return payload 
 
-        headers = {
-            "Content-Type": 'application/json'
-        }
-        response = requests.post(url, data=json.dumps(data), headers=headers)
 
-        if response:
-            # print(r.text)
-            pass
+    def send_to_webhook(self, urls: list, **kwargs) -> None:
+        place_ids = kwargs['place_ids']
+        last_timestamp = kwargs['last_update']
+
+        for i, place_id in enumerate(place_ids.keys()):
+            payload = self.prepare_request(urls[i])
+            if payload:
+                response = self.post(url, payload, self.headers)
+                if response:
+                    logging.warning(response.text)
+                    continue
+            break
 
 
 if __name__ == "__main__":
-
     parser = argparse.ArgumentParser()
-
-    # specify a file for configuration excluding an extention (default: "%(default)s")
     args = parser.parse_args()
 
-    load_dotenv()
+    if not os.path.exists(setting.config):
+        logging.error(f'{setting.config} not found.')
+        sys,exit(1)
 
-    if (os.path.exists(os.environ.get('FORECAST_CONFIG'))):
-        # Open config file
-        with open(os.environ.get('FORECAST_CONFIG'), 'r', encoding="utf-8") as fp:
-            j = json.loads(fp.read())
+    with open(setting.config, 'r', encoding="utf-8") as fp:
+        j = json.loads(fp.read())
 
-        if j['settings']['force']:
-            j['latest']['done'] = False
+    main(args=args, j=j)
 
-        # "done" は日付をまたいだ時に意味をなさないので必ずチェックにかける
-        if j['latest']['done']:
-            if not needs_update(
-                    j['latest']['lastUpdate'],
-                    {
-                        'hours':   j['settings']['interval']['hours'],
-                        'minutes': j['settings']['interval']['minutes']
-                    }):
-                j['latest']['done'] = False
-
-        main(args=args, j=j)
-
-    else:
-        msg = f'Error: {os.environ.get("FORECAST_CONFIG")} not found.'
-        print(msg)
