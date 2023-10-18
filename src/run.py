@@ -138,75 +138,6 @@ def main(j: dict, args) -> None:
                 pass
     pass
 
-class WebhookPosting:
-    def __init__(self):
-        self.headers = { "Content-Type": 'application/json' }
-        self.webhook_url = "" 
-
-
-    def post(self, url, payload, headers):
-        response = requests.post(url, data=payload, headers=headers)
-        return response
-
-
-    def prepare_request(self, images) -> str:
-        data = self.prepare_payload(*images)
-        json_text = json.dumps({})
-        if data:
-            json_text = json.dumps(data) 
-            return json_text 
-        return json_text
-
-
-class WebhookNHKNews(WebhookPosting):
-    def __init__(self):
-        pass
-
-    def prepare_payload(self, filename, filename_icon) -> dict:
-        logging.warning(f"filename={filename}, filename_icon={filename_icon}")
-        payload = {
-            "content": "",
-            "username": "NHK NEWS WEB",
-            "avatar_url": "https://pbs.twimg.com/profile_images" \
-                          "/1232909058786484224/X8-z940J_400x400.png",
-            "embeds": [{
-                "title": f"{place_ids[place_id]} | 天気予報",
-                "description": "3時間おきに天気予報をお伝えします",
-                "url": "https://www.nhk.or.jp/kishou-saigai/city/weather/" \
-                        place_id,
-                "timestamp": self.last_timestamp,
-                "color": 0x0076d1,
-                "image": {
-                    "url": filename,
-                },
-                "thumbnail": {
-                    "url": filename_icon,
-                },
-                "footer": {
-                    "text": "Deployed by Yokkin",
-                    "icon_url": "https://yokkin.com/wp/wp-content/" \
-                                "themes/Odamaki/files/img/website-logo.png"
-                },
-                "author": {
-                    "name": "あなたの天気・防災"
-                }
-            }]
-        }
-        return payload 
-
-
-    def send_to_webhook(self, urls: list, **kwargs) -> None:
-        place_ids = kwargs['place_ids']
-        last_timestamp = kwargs['last_update']
-
-        for i, place_id in enumerate(place_ids.keys()):
-            payload = self.prepare_request(urls[i])
-            if payload:
-                response = self.post(url, payload, self.headers)
-                if response:
-                    logging.warning(response.text)
-                    continue
-            break
 
 
 if __name__ == "__main__":
@@ -215,7 +146,7 @@ if __name__ == "__main__":
 
     if not os.path.exists(setting.config):
         logging.error(f'{setting.config} not found.')
-        sys,exit(1)
+        sys.exit(1)
 
     with open(setting.config, 'r', encoding="utf-8") as fp:
         j = json.loads(fp.read())
