@@ -1,12 +1,12 @@
 # Forecast-Auto-Post
 
-This tools allows you to capture the forecast on NHK NEWS Web, and then post to Discord.
+This tools allows you to retrieve the forecast on NHK NEWS Web, and then post to Discord.
 
 ## Setup
 
-You can set up this tool in this way below;
+Setup your own `.env` in this way:
 
-```
-python -m venv .venv
-make install
+```bash
+PLACE_ID=
+WEBHOOK_URL=
 ```
