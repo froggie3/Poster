@@ -1,23 +1,33 @@
 #!/usr/bin/env php
 <?php
-class Telop {
-    public const TELOP = [
+class Telop
+{
+    public const TelopData = [
         100 => ["晴れ", ":sunny:"],
         101 => ["晴れ時々くもり", ":partly_sunny:"],
         102 => ["晴れ一時雨", ":white_sun_rain_cloud:"],
         103 => ["晴れ時々雨", ":white_sun_rain_cloud:"],
-        111 => ["晴れのちくもり", ":white_sun_cloud:"],
-        114 => ["晴れのち雨", ":white_sun_rain_cloud:"],
+        105 => ["晴れ一時雪", ":white_sun_rain_cloud:"],
+        110 => ["晴れのちくもり", ":white_sun_cloud:"],
+        111 => ["晴れのちくもり", ":white_sun_cloud:"],  # dup: 110
+        113 => ["晴れのち雨", ":white_sun_rain_cloud:"],
+        114 => ["晴れのち雨", ":white_sun_rain_cloud:"],  # dup: 113
+        115 => ["晴れのち雪", ":white_sun_rain_cloud:"],
         200 => ["くもり", ":cloud:"],
         201 => ["くもり時々晴れ", ":partly_sunny:"],
         202 => ["くもり一時雨", ":cloud_rain:"],
         203 => ["くもり時々雨", ":cloud_rain:"],
-        211 => ["くもりのち晴れ", ":white_sun_cloud:"],
-        214 => ["くもりのち雨", ":cloud_rain:"],
+        205 => ["くもり一時雪", ":cloud_rain:"],
+        210 => ["くもりのち晴れ", ":white_sun_cloud:"],
+        211 => ["くもりのち晴れ", ":white_sun_cloud:"],  # dup: 210
+        213 => ["くもりのち雨", ":cloud_rain:"],
+        214 => ["くもりのち雨", ":cloud_rain:"],  # dup: 213
+        215 => ["くもりのち雪", ":cloud_rain:"],
         300 => ["雨", ":cloud_rain:"],
         301 => ["雨時々晴れ", ":white_sun_rain_cloud:"],
         302 => ["雨一時くもり", ":white_sun_small_cloud:"],
         303 => ["雨時々雪", ":cloud_snow:"],
+        308 => ["暴風雨", ":cloud_rain:"],
         311 => ["雨のち晴れ", ":white_sun_rain_cloud:"],
         313 => ["雨のちくもり", ":cloud_rain:"],
         315 => ["雨のち雪", ":cloud_snow:"],
@@ -25,47 +35,55 @@ class Telop {
         401 => ["雪時々晴れ", ":cloud_snow:"],
         402 => ["雪時々やむ", ":cloud_snow:"],
         403 => ["雪時々雨", ":cloud_snow:"],
+        407 => ["暴風雪", ":cloud_snow:"],
+        409 => ["雪時々雨", ":cloud_snow:"],
         411 => ["雪のち晴れ", ":white_sun_rain_cloud:"],
         413 => ["雪のちくもり", ":cloud_snow:"],
         414 => ["雪のち雨", ":cloud_snow:"]
     ];
 }
 
-class TenkiFetch {
+class TenkiFetch
+{
     private $query;
-    private $weather_data;
+    private $weatherData;
 
-    public function __construct($uid) {
+    public function __construct($uid)
+    {
         $this->query = http_build_query([
             'uid' => $uid,
             'kind' => "web",
             'akey' => "18cce8ec1fb2982a4e11dd6b1b3efa36"  // MD5 checksum of "nhk"
         ]);
-        $this->weather_data = [];
+        $this->weatherData = [];
     }
 
-    public function fetch() {
+    public function fetch()
+    {
         $url = "https://www.nhk.or.jp/weather-data/v1/lv3/wx/?" . $this->query;
         $response = file_get_contents($url);
         if ($response) {
-            $this->weather_data = json_decode($response, true);
-            return $this->weather_data;
+            $this->weatherData = json_decode($response, true);
+            return $this->weatherData;
         }
         return [];
     }
 }
 
-class WebhookPosting {
-    protected const HEADERS = [
+class WebhookPosting
+{
+    protected const Headers = [
         "Content-Type: application/json",
         "User-Agent: Mozilla/5.0"
     ];
-    protected $webhook_url;
+    protected $webhookUrl;
 
-    public function __construct() {
+    public function __construct()
+    {
     }
 
-    protected function post($url, $payload, $headers) {
+    protected function post($url, $payload, $headers)
+    {
         $context = stream_context_create([
             'http' => [
                 'method' => 'POST',
@@ -78,77 +96,81 @@ class WebhookPosting {
     }
 }
 
-class WebhookNHKNews extends WebhookPosting {
-    private const AUTHOR_URL = "https://yokkin.com/d/forecast_resource/author.jpg";
-    private const AVATAR_URL = "https://yokkin.com/d/forecast_resource/avatar.png";
+class WebhookNHKNews extends WebhookPosting
+{
+    private const AuthorUrl = "https://yokkin.com/d/forecast_resource/author.jpg";
+    private const AvatarUrl = "https://yokkin.com/d/forecast_resource/avatar.png";
     private $content;
     private $weather;
-    private $location_url;
-    private $thumbnail_url;
+    private $locationUrl;
+    private $thumbnailUrl;
     private $timestamp;
 
-    public function __construct($url, $weather) {
-        $this->webhook_url = $url;
+    public function __construct($url, $weather)
+    {
+        $this->webhookUrl = $url;
         $this->content = "天気でーす";
         $this->weather = $weather;
     }
 
-    public function send() {
-        $data = $this->prepare_payload($this->weather);
+    public function send()
+    {
+        $data = $this->preparePayload($this->weather);
         $payload = json_encode($data);
-        $response = $this->post($this->webhook_url, $payload, self::HEADERS);
+        $response = $this->post($this->webhookUrl, $payload, self::Headers);
         if ($response) {
             return true;
         }
         return false;
     }
 
-    protected function prepare_payload($weather) {
-        $this->location_url = "https://www.nhk.or.jp/kishou-saigai/city/weather/" . $weather->location_uid;
-        $this->thumbnail_url = "https://yokkin.com/d/forecast_resource/tlp" . $weather->telop . ".png";
-        $this->timestamp = $weather->forecast_date;
+    protected function preparePayload($weather)
+    {
+        $this->locationUrl = "https://www.nhk.or.jp/kishou-saigai/city/weather/" . $weather->locationUid;
+        $this->thumbnailUrl = "https://yokkin.com/d/forecast_resource/tlp" . $weather->telop . ".png";
+        $this->timestamp = $weather->forecastDate;
 
         $payload = [
             "content" => $this->content,
             "username" => "NHK NEWS WEB",
-            "avatar_url" => self::AVATAR_URL,
+            "avatar_url" => self::AvatarUrl,
             "embeds" => [
                 [
                     "title" => "きょうの天気予報",
-                    "description" => $weather->location_name . "の天気予報です",
-                    "url" => $this->location_url,
+                    "description" => $weather->locationName . "の天気予報です",
+                    "url" => $this->locationUrl,
                     "timestamp" => $this->timestamp,
                     "color" => 0x0076d1,
                     "image" => ["url" => "https://www3.nhk.or.jp/weather/tenki/tenki_01.jpg"],
-                    "thumbnail" => ["url" => $this->thumbnail_url],
+                    "thumbnail" => ["url" => $this->thumbnailUrl],
                     "footer" => [
                         "text" => "Deployed by Yokkin",
-                        "icon_url" => self::AUTHOR_URL,
+                        "icon_url" => self::AuthorUrl,
                     ],
                     "author" => [
                         "name" => "NHK NEWS WEB",
                         "url" => "https://www3.nhk.or.jp/news/",
-                        "icon_url" => self::AVATAR_URL,
+                        "icon_url" => self::AvatarUrl,
                     ],
                     "fields" => [
                         [
                             "name" => "天気",
-                            "value" => $weather->weather_emoji . " " . $weather->weather,
+                            "value" => $weather->weatherEmoji . " " . $weather->weather,
                             "inline" => false,
                         ],
                         [
                             "name" => "最高気温",
-                            "value" => ":chart_with_upwards_trend: " . $weather->max_temp . " ℃ " . "(" . $weather->max_temp_diff . " ℃)",
+                            "value" => ":chart_with_upwards_trend: " . $weather->maxTemp . " ℃ " . sprintf("(%+d ℃)", $weather->maxTempDiff),
                             "inline" => true,
                         ],
                         [
                             "name" => "最低気温",
-                            "value" => ":chart_with_downwards_trend: " . $weather->min_temp . " ℃ " . "(" . $weather->min_temp_diff . " ℃)",
+                            "value" => ":chart_with_downwards_trend: " . $weather->minTemp . " ℃ " . sprintf("(%+d ℃)", $weather->minTempDiff),
                             "inline" => true,
                         ],
                         [
                             "name" => "降水確率",
-                            "value" => ":umbrella: " . $weather->rainy_day . " %",
+                            "value" => ":umbrella: " . $weather->rainyDay . " %",
                             "inline" => true,
                         ],
                     ],
@@ -160,49 +182,53 @@ class WebhookNHKNews extends WebhookPosting {
     }
 }
 
-class Weather {
-    public $location_name;
-    public $forecast_date;
-    public $max_temp;
-    public $max_temp_diff;
-    public $min_temp;
-    public $min_temp_diff;
-    public $rainy_day;
+class Weather
+{
+    public $locationUid;
+    public $locationName;
+    public $forecastDate;
+    public $maxTemp;
+    public $maxTempDiff;
+    public $minTemp;
+    public $minTempDiff;
+    public $rainyDay;
     public $telop;
     public $weather;
-    public $weather_emoji;
+    public $weatherEmoji;
 
-    public function __construct($weather_data) {
-        $pref = $weather_data['lv2_info']['name'];
-        $district = $weather_data['name'];
-        $this->location_uid = $weather_data['uid'];
-        $this->location_name = $pref . $district;
+    public function __construct($uid, $weatherData)
+    {
+        $pref = $weatherData['lv2_info']['name'];
+        $district = $weatherData['name'];
+        $this->locationUid = $uid;
+        $this->locationName = $pref . $district;
 
-        $forecast_three_days = $weather_data['trf']['forecast'];
-        $forecast_today = $forecast_three_days[0];
+        $forecastThreeDays = $weatherData['trf']['forecast'];
+        $forecastToday = $forecastThreeDays[0];
 
-        $this->forecast_date = $forecast_today['forecast_date'];
-        $this->max_temp = $forecast_today['max_temp'];
-        $this->max_temp_diff = $forecast_today['max_temp_diff'];
-        $this->min_temp = $forecast_today['min_temp'];
-        $this->min_temp_diff = $forecast_today['min_temp_diff'];
-        $this->rainy_day = $forecast_today['rainy_day'];
+        $this->forecastDate = $forecastToday['forecast_date'];
+        $this->maxTemp = $forecastToday['max_temp'];
+        $this->maxTempDiff = $forecastToday['max_temp_diff'];
+        $this->minTemp = $forecastToday['min_temp'];
+        $this->minTempDiff = $forecastToday['min_temp_diff'];
+        $this->rainyDay = $forecastToday['rainy_day'];
 
-        $this->telop = $forecast_today['telop'];
-        [$this->weather, $this->weather_emoji] = Telop::TELOP[$this->telop];
+        $this->telop = $forecastToday['telop'];
+        [$this->weather, $this->weatherEmoji] = Telop::TelopData[$this->telop];
     }
 }
 
-$env = parse_ini_file('.env');
+if (!$env = parse_ini_file('.env')) {
+    exit(1);
+}
 $url = $env["WEBHOOK_URL"];
-
-$fetch = new TenkiFetch($env["PLACE_ID"]);
+$uid = $env["PLACE_ID"];
+$fetch = new TenkiFetch($uid);
 $res = $fetch->fetch();
 if (!$res) {
     exit(1);
 }
 
-$weather = new Weather($res);
+$weather = new Weather($uid, $res);
 $webhook = new WebhookNHKNews($url, $weather);
 $webhook->send();
-
