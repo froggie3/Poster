@@ -128,7 +128,6 @@ class WebhookNHKNews extends WebhookPosting
     {
         $this->locationUrl = "https://www.nhk.or.jp/kishou-saigai/city/weather/" . $weather->locationUid;
         $this->thumbnailUrl = "https://yokkin.com/d/forecast_resource/tlp" . $weather->telop . ".png";
-        $this->timestamp = $weather->forecastDate;
 
         $payload = [
             "content" => $this->content,
@@ -139,7 +138,7 @@ class WebhookNHKNews extends WebhookPosting
                     "title" => "きょうの天気予報",
                     "description" => $weather->locationName . "の天気予報です",
                     "url" => $this->locationUrl,
-                    "timestamp" => $this->timestamp,
+                    "timestamp" => $weather->forecastDate,
                     "color" => 0x0076d1,
                     "image" => ["url" => "https://www3.nhk.or.jp/weather/tenki/tenki_01.jpg"],
                     "thumbnail" => ["url" => $this->thumbnailUrl],
@@ -160,17 +159,17 @@ class WebhookNHKNews extends WebhookPosting
                         ],
                         [
                             "name" => "最高気温",
-                            "value" => ":chart_with_upwards_trend: " . $weather->maxTemp . " ℃ " . sprintf("(%+d ℃)", $weather->maxTempDiff),
+                            "value" => sprintf(":chart_with_upwards_trend: %d ℃ (%+d ℃)", $weather->maxTemp, $weather->maxTempDiff),
                             "inline" => true,
                         ],
                         [
                             "name" => "最低気温",
-                            "value" => ":chart_with_downwards_trend: " . $weather->minTemp . " ℃ " . sprintf("(%+d ℃)", $weather->minTempDiff),
+                            "value" => sprintf(":chart_with_downwards_trend: %d ℃ (%+d ℃)", $weather->minTemp, $weather->minTempDiff),
                             "inline" => true,
                         ],
                         [
                             "name" => "降水確率",
-                            "value" => ":umbrella: " . $weather->rainyDay . " %",
+                            "value" => sprintf(":umbrella: %d %", $weather->rainyDay),
                             "inline" => true,
                         ],
                     ],
