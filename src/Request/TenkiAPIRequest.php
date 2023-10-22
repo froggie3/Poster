@@ -29,5 +29,3 @@ class TenkiAPIRequest extends Request
         return $weatherData;
     }
 }
-
-

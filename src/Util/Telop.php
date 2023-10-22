@@ -44,4 +44,3 @@ class Telop
         414 => ["雪のち雨", ":cloud_snow:"]
     ];
 }
-

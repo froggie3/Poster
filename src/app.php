@@ -6,18 +6,28 @@ namespace App;
 use App\Request\TenkiAPIRequest;
 use App\Request\WebhookNHKNewsRequest;
 use App\DateTypes\Weather;
+use Monolog\Level;
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+
+$log = new Logger("App");
+$log->pushHandler(new StreamHandler(__DIR__ . "/../logs/app.log", Level::Debug));
+
+$log->info("program initiated");
+
+$dotenvDirectory = __DIR__ . "/../.env";
+$log->info("attempting to load dotenv from $dotenvDirectory");
 
 try {
-    $dotenvDirectory = dirname('..') . "/.env";
     if (!$env = parse_ini_file($dotenvDirectory)) {
         throw new \Exception("bad .env file", 1);
     }
 } catch (\Exception $e) {
-    echo $e->getMessage(), "\n";
+    $log->error($e->getMessage());
     return 1;
 }
 
-echo "dotenv was successfully loaded: $dotenvDirectory\n";
+$log->info("dotenv was successfully loaded");
 
 /**
  * Get environmental variables from .env file.
@@ -26,18 +36,22 @@ echo "dotenv was successfully loaded: $dotenvDirectory\n";
 $webhookUrl = $env["WEBHOOK_URL"];
 $placeId = $env["PLACE_ID"];
 
+$log->info("webhook destination: $webhookUrl");
+$log->info("place uid: $placeId");
+
 /**
  * Send a request to API endpoint.
  */
 
 $fetch = new TenkiAPIRequest($placeId);
 
+$log->info("sending a request to API endpoint");
 try {
     if (!$response = $fetch->fetch()) {
         throw new \Exception("Error Processing Request", 1);
     }
 } catch (\Exception $e) {
-    echo $e->getMessage();
+    $log->error($e->getMessage());
     return 1;
 }
 
@@ -55,9 +69,11 @@ $status = $webhook->send();
  */
 
 if ($status != false) {
-    echo "failed to send a message\n";
+    $log->error("failed to send a message");
     return 1;
 }
 
-echo "message successfully sent\n";
+$log->info("message successfully sent");
+
+$log->info("finalizing...");
 return 0;
