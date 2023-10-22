@@ -194,4 +194,7 @@ $log->info("message successfully sent");
 $log->info("message successfully sent");
 
 $log->info("finalizing...");
+$log->info("message successfully sent");
+
+$log->info("finalizing...");
 return 0;
