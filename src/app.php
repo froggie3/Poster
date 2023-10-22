@@ -5,7 +5,7 @@ namespace App;
 
 use App\Request\TenkiAPIRequest;
 use App\Request\WebhookNHKNewsRequest;
-use App\DateTypes\Weather;
+use App\DataTypes\Weather;
 use Monolog\Level;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
