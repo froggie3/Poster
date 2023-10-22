@@ -16,7 +16,6 @@ class WebhookNHKNewsRequest extends Request
         parent::__construct();
         $this->url = $url;
         $this->headers[] = "Content-Type: application/json";
-        $this->content = "天気でーす";
         $this->weather = $weather;
     }
 
@@ -36,6 +35,10 @@ class WebhookNHKNewsRequest extends Request
         $this->locationUrl = "https://www.nhk.or.jp/kishou-saigai/city/weather/" . $weather->locationUid;
         $this->thumbnailUrl = "https://yokkin.com/d/forecast_resource/tlp" . $weather->telop . ".png";
 
+        $date = (new \DateTimeImmutable($weather->forecastDate))->format("H:i");
+        $this->content = "天気でーす（データは $date 時点）";
+
+        // to be separated into dedicated class maybe?
         $payload = [
             "content" => $this->content,
             "username" => "NHK NEWS WEB",

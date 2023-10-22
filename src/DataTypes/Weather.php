@@ -28,7 +28,7 @@ class Weather
         $forecastThreeDays = $weatherData['trf']['forecast'];
         $forecastToday = $forecastThreeDays[0];
 
-        $this->forecastDate = $forecastToday['forecast_date'];
+        $this->forecastDate = $weatherData['created_date'];
         $this->maxTemp = $forecastToday['max_temp'];
         $this->maxTempDiff = $forecastToday['max_temp_diff'];
         $this->minTemp = $forecastToday['min_temp'];
