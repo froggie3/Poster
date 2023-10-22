@@ -30,11 +30,11 @@ try {
         throw new \Exception("bad .env file", 1);
     }
 } catch (\Exception $e) {
-    echo $e->getMessage(), "\n";
+    $log->error($e->getMessage());
     return 1;
 }
 
-echo "dotenv was successfully loaded: $dotenvDirectory\n";
+$log->info("dotenv was successfully loaded");
 
 /**
  * Get environmental variables from .env file.
@@ -63,11 +63,13 @@ $log->info("place uid: $placeId");
 $fetch = new TenkiAPIRequest($placeId);
 
 $log->info("sending a request to API endpoint");
+$log->info("sending a request to API endpoint");
 try {
     if (!$response = $fetch->fetch()) {
         throw new \Exception("failed to reach the API endpoint", 1);
     }
 } catch (\Exception $e) {
+    $log->error($e->getMessage());
     $log->error($e->getMessage());
     return 1;
 }
@@ -140,6 +142,9 @@ if (!$status) {
     return 1;
 }
 
+$log->info("message successfully sent");
+
+$log->info("finalizing...");
 $log->info("message successfully sent");
 
 $log->info("finalizing...");
