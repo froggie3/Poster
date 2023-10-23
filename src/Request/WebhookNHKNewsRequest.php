@@ -50,7 +50,7 @@ class WebhookNHKNewsRequest extends Request
                     "url" => $this->locationUrl,
                     "timestamp" => $weather->forecastDate,
                     "color" => 0x0076d1,
-                    "image" => ["url" => "https://www3.nhk.or.jp/weather/tenki/tenki_01.jpg"],
+                    // "image" => ["url" => "https://www3.nhk.or.jp/weather/tenki/tenki_01.jpg"],
                     "thumbnail" => ["url" => $this->thumbnailUrl],
                     "footer" => [
                         "text" => "Deployed by Yokkin",
