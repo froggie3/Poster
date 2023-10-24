@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Request;
 
 class WebhookNHKNewsRequest extends Request
@@ -19,18 +21,14 @@ class WebhookNHKNewsRequest extends Request
         $this->weather = $weather;
     }
 
-    public function send()
+    public function send(): string | false
     {
         $data = $this->preparePayload($this->weather);
         $payload = json_encode($data);
-        $response = $this->post($this->url, $payload);
-        if ($response) {
-            return true;
-        }
-        return false;
+        return $this->post($this->url, $payload);
     }
 
-    protected function preparePayload($weather)
+    protected function preparePayload($weather): array
     {
         $this->locationUrl = "https://www.nhk.or.jp/kishou-saigai/city/weather/" . $weather->locationUid;
         $this->thumbnailUrl = "https://yokkin.com/d/forecast_resource/tlp" . $weather->telop . ".png";

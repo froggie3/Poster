@@ -1,22 +1,24 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\DataTypes;
 
 use App\Utils\Telop;
 
 class Weather
 {
-    public $locationUid;
-    public $locationName;
-    public $forecastDate;
-    public $maxTemp;
-    public $maxTempDiff;
-    public $minTemp;
-    public $minTempDiff;
-    public $rainyDay;
-    public $telop;
-    public $weather;
-    public $weatherEmoji;
+    public string $locationUid;
+    public string $locationName;
+    public string $forecastDate;
+    public string $maxTemp;
+    public string $maxTempDiff;
+    public string $minTemp;
+    public string $minTempDiff;
+    public string $rainyDay;
+    public string $telop;
+    public string $weather;
+    public string $weatherEmoji;
 
     public function __construct($uid, $weatherData)
     {
