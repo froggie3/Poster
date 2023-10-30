@@ -33,7 +33,7 @@ class WebhookNHKNewsRequest extends Request
     protected function preparePayload($weather)
     {
         $this->locationUrl = "https://www.nhk.or.jp/kishou-saigai/city/weather/" . $weather->locationUid;
-        $this->thumbnailUrl = "https://yokkin.com/d/forecast_resource/tlp" . $weather->telop . ".png";
+        $this->thumbnailUrl = "https://yokkin.com/d/forecast_resource/" . $weather->telopFile;
 
         $date = (new \DateTimeImmutable($weather->forecastDate))->format("H:i");
         $this->content = "天気でーす（データは $date 時点）";

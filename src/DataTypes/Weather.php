@@ -17,6 +17,7 @@ class Weather
     public $telop;
     public $weather;
     public $weatherEmoji;
+    public $telopFile;
 
     public function __construct($uid, $weatherData)
     {
@@ -36,6 +37,6 @@ class Weather
         $this->rainyDay = $forecastToday['rainy_day'];
 
         $this->telop = $forecastToday['telop'];
-        [$this->weather, $this->weatherEmoji] = Telop::TelopData[$this->telop];
+        [$this->weather, $this->weatherEmoji, $this->telopFile] = Telop::TelopData[$this->telop];
     }
 }
