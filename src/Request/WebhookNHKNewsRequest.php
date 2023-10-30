@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Request;
 
 class WebhookNHKNewsRequest extends Request
@@ -19,18 +21,14 @@ class WebhookNHKNewsRequest extends Request
         $this->weather = $weather;
     }
 
-    public function send()
+    public function send(): string | false
     {
         $data = $this->preparePayload($this->weather);
         $payload = json_encode($data);
-        $response = $this->post($this->url, $payload);
-        if ($response) {
-            return true;
-        }
-        return false;
+        return $this->post($this->url, $payload);
     }
 
-    protected function preparePayload($weather)
+    protected function preparePayload($weather): array
     {
         $this->locationUrl = "https://www.nhk.or.jp/kishou-saigai/city/weather/" . $weather->locationUid;
         $this->thumbnailUrl = "https://yokkin.com/d/forecast_resource/" . $weather->telopFile;
@@ -50,7 +48,7 @@ class WebhookNHKNewsRequest extends Request
                     "url" => $this->locationUrl,
                     "timestamp" => $weather->forecastDate,
                     "color" => 0x0076d1,
-                    "image" => ["url" => "https://www3.nhk.or.jp/weather/tenki/tenki_01.jpg"],
+                    // "image" => ["url" => "https://www3.nhk.or.jp/weather/tenki/tenki_01.jpg"],
                     "thumbnail" => ["url" => $this->thumbnailUrl],
                     "footer" => [
                         "text" => "Deployed by Yokkin",

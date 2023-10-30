@@ -1,15 +1,20 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Request;
+
+use App\DataTypes\Weather;
+use TypeError;
 
 class TenkiAPIRequest extends Request
 {
-    private $query;
+    private array $queries;
     private const API_ENDPOINT = "https://www.nhk.or.jp/weather-data/v1/lv3/wx/?";
 
     public function __construct($uid)
     {
-        $this->query = [
+        $this->queries = [
             'uid' => $uid,
             'kind' => "web",
             'akey' => "18cce8ec1fb2982a4e11dd6b1b3efa36"  // MD5 checksum of "nhk"
@@ -17,13 +22,16 @@ class TenkiAPIRequest extends Request
         parent::__construct();
     }
 
-    public function fetch()
+    public function fetch(): array
     {
-        $response = $this->get(self::API_ENDPOINT, $this->query);
+        $response = $this->get(self::API_ENDPOINT, $this->queries);
+        if (!$response) {
+            return [];
+        }
         try {
             $weatherData = json_decode($response, true, JSON_THROW_ON_ERROR);
-        } catch (\JsonException $exception) {
-            echo $exception->getMessage() . "\n"; // displays "Syntax error"  
+        } catch (\JsonException $e) {
+            echo $e->getMessage() . "\n";
             return [];
         }
         return $weatherData;

@@ -1,6 +1,8 @@
 #!/usr/bin/env php
 <?php
 
+declare(strict_types=1);
+
 namespace App;
 
 use App\Request\TenkiAPIRequest;
@@ -48,7 +50,7 @@ $fetch = new TenkiAPIRequest($placeId);
 $log->info("sending a request to API endpoint");
 try {
     if (!$response = $fetch->fetch()) {
-        throw new \Exception("Error Processing Request", 1);
+        throw new \Exception("failed to reach the API endpoint", 1);
     }
 } catch (\Exception $e) {
     $log->error($e->getMessage());
@@ -68,7 +70,7 @@ $status = $webhook->send();
  * Finish program.
  */
 
-if ($status != false) {
+if (!$status) {
     $log->error("failed to send a message");
     return 1;
 }
