@@ -8,6 +8,7 @@ namespace App;
 use App\Request\TenkiAPIRequest;
 use App\Request\WebhookNHKNewsRequest;
 use App\DataTypes\Weather;
+use App\Utils\Telop;
 use Monolog\Level;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
@@ -15,7 +16,7 @@ use Monolog\Handler\StreamHandler;
 $log = new Logger("App");
 $log->pushHandler(new StreamHandler(__DIR__ . "/../logs/app.log", Level::Debug));
 
-$log->info("program initiated");
+$log->info("program initialized");
 
 $dotenvDirectory = __DIR__ . "/../.env";
 $log->info("attempting to load dotenv from $dotenvDirectory");
@@ -57,7 +58,35 @@ try {
     return 1;
 }
 
-$weatherData = new Weather($placeId, $response);
+/**
+ * Packing the retrieved data into a dedicated data class.
+ */
+
+$weatherData = new Weather();
+$weatherData->locationUid = $placeId;
+$weatherData->locationName = (
+    fn ($prefecture, $districtName) => $prefecture . $districtName)(
+    $response['lv2_info']['name'],
+    $response['name']
+);
+$weatherData->forecastDate = $response['created_date'];
+
+// forecast for three days
+$forecastThreeDays = $response['trf']['forecast'];
+
+// forecast only for today
+$weatherData->maxTemp = $forecastThreeDays[0]['max_temp'];
+$weatherData->maxTempDiff = $forecastThreeDays[0]['max_temp_diff'];
+$weatherData->minTemp = $forecastThreeDays[0]['min_temp'];
+$weatherData->minTempDiff = $forecastThreeDays[0]['min_temp_diff'];
+$weatherData->rainyDay = $forecastThreeDays[0]['rainy_day'];
+$weatherData->telop = $forecastThreeDays[0]['telop'];
+[
+    $weatherData->weather,
+    $weatherData->weatherEmoji,
+    $weatherData->telopFile
+] = Telop::TelopData[$weatherData->telop];
+
 
 /**
  * Send a POST request to Webhook API.
