@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Request;
 
-use Error;
-
 class Request
 {
     protected array $headers;
