@@ -144,6 +144,5 @@ if (!$status) {
     return 1;
 }
 $log->info("message successfully sent");
-
-echo "message successfully sent\n";
+$log->info("finalizing...");
 return 0;
