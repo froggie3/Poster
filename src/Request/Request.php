@@ -1,11 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Request;
+
+use Error;
 
 class Request
 {
-    protected $headers;
-    protected $url;
+    protected array $headers;
+    protected string $url;
 
     public function __construct()
     {
@@ -14,7 +18,7 @@ class Request
         ];
     }
 
-    protected function post($url, $payload)
+    protected function post($url, $payload): string | false
     {
         $context = stream_context_create([
             'http' => [
@@ -27,7 +31,7 @@ class Request
         return $response;
     }
 
-    protected function get($url, $queries = [])
+    protected function get(string $url, array $queries = []): string | false
     {
         $context = stream_context_create([
             'http' => [
@@ -37,9 +41,13 @@ class Request
         ]);
         // no problem since even it's empty it returns empty string
         $url .= http_build_query($queries);
-        if ($response = file_get_contents($url, false, $context)) {
-            return $response;
+        $response = file_get_contents($url, false, $context);
+
+        // add a custom exception handler sometime
+        if (!$response) {
+            return false;
         }
-        return "";
+
+        return $response;
     }
 }
