@@ -29,6 +29,28 @@ $log->info("attempting to load dotenv from $dotenvDirectory");
 
 try {
     if (!$env = openEnvVariables($dotenvDirectory)) {
+use App\DataTypes\Weather;
+use App\Utils\Algorithm;
+use App\Utils\Telop;
+use Monolog\Level;
+use Monolog\Logger;
+use Monolog\Handler\StreamHandler;
+
+$log = new Logger("App");
+$log->pushHandler(new StreamHandler(__DIR__ . "/../logs/app.log", Level::Debug));
+
+$log->info("program initialized");
+
+function openEnvVariables($path): array | false
+{
+    return parse_ini_file($path);
+}
+
+$dotenvDirectory = __DIR__ . "/../.env";
+$log->info("attempting to load dotenv from $dotenvDirectory");
+
+try {
+    if (!$env = openEnvVariables($dotenvDirectory)) {
         throw new \Exception("bad .env file", 1);
     }
 } catch (\Exception $e) {
@@ -57,6 +79,21 @@ $placeId = parseEnvVariables($env["PLACE_ID"])[0];
 
 $log->info("webhook destination: $webhookUrl");
 $log->info("place uid: $placeId");
+function parseEnvVariables(string $parameter): array
+{
+    $configArray = [];
+    if (!$parameter) return $configArray;
+    foreach (explode(",", $parameter) as $v) {
+        $configArray[] = rtrim($v);
+    }
+    return $configArray;
+}
+
+$webhookUrl = parseEnvVariables($env["WEBHOOK_URL"])[0];
+$placeId = parseEnvVariables($env["PLACE_ID"])[0];
+
+$log->info("webhook destination: $webhookUrl");
+$log->info("place uid: $placeId");
 
 /**
  * Send a request to API endpoint.
@@ -65,11 +102,14 @@ $log->info("place uid: $placeId");
 $fetch = new TenkiAPIRequest($placeId);
 
 $log->info("sending a request to API endpoint");
+$log->info("sending a request to API endpoint");
 try {
     if (!$response = $fetch->fetch()) {
         throw new \Exception("failed to reach the API endpoint", 1);
+        throw new \Exception("failed to reach the API endpoint", 1);
     }
 } catch (\Exception $e) {
+    $log->error($e->getMessage());
     $log->error($e->getMessage());
     return 1;
 }
@@ -93,10 +133,11 @@ function composeDataPackage(array $jsonResponse, string $placeId, int $index = 0
     $weatherData->locationUid = $placeId;
     $weatherData->locationName = $prefecture . $district;
     $weatherData->forecastDate = $forecastDate;
-    $weatherData->minTemp      = $forecastThreeDays[$index]['min_temp'];
-    $weatherData->minTempDiff  = $forecastThreeDays[$index]['min_temp_diff'];
+
     $weatherData->maxTemp      = $forecastThreeDays[$index]['max_temp'];
     $weatherData->maxTempDiff  = $forecastThreeDays[$index]['max_temp_diff'];
+    $weatherData->minTemp      = $forecastThreeDays[$index]['min_temp'];
+    $weatherData->minTempDiff  = $forecastThreeDays[$index]['min_temp_diff'];
     $weatherData->rainyDay     = $forecastThreeDays[$index]['rainy_day'];
     $weatherData->telop        = $forecastThreeDays[$index]['telop'];
     [$weatherData->weather, $weatherData->weatherEmoji, $weatherData->telopFile] =
@@ -124,8 +165,14 @@ $sendQueue = [
 
 /**
  * Send a POST request to Webhook API
+ * Send a POST request to Webhook API
  */
 
+while ($sendQueue) {
+    [$data, $dest,] = array_shift($sendQueue);
+    $webhook = new WebhookNHKNewsRequest($dest, $data);
+    $status = $webhook->send();
+}
 while ($sendQueue) {
     [$data, $dest,] = array_shift($sendQueue);
     $webhook = new WebhookNHKNewsRequest($dest, $data);
@@ -138,8 +185,12 @@ while ($sendQueue) {
 
 if (!$status) {
     $log->error("failed to send a message");
+if (!$status) {
+    $log->error("failed to send a message");
     return 1;
 }
+$log->info("message successfully sent");
+
 $log->info("message successfully sent");
 
 $log->info("finalizing...");
