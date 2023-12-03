@@ -27,9 +27,6 @@ class Algorithm
      */
     static function clamp(int $x, int $lo, int $hi): int
     {
-        if ($x >= $hi || $x < $lo) {
-            $x = max($lo, min($x, $hi));
-        }
-        return $x;
+        return max($lo, min($x, $hi));
     }
 }
