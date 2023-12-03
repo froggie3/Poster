@@ -93,7 +93,8 @@ function composeDataPackage(array $jsonResponse, string $placeId, int $index = 0
     $weatherData->locationUid = $placeId;
     $weatherData->locationName = $prefecture . $district;
     $weatherData->forecastDate = $forecastDate;
-
+    $weatherData->minTemp      = $forecastThreeDays[$index]['min_temp'];
+    $weatherData->minTempDiff  = $forecastThreeDays[$index]['min_temp_diff'];
     $weatherData->maxTemp      = $forecastThreeDays[$index]['max_temp'];
     $weatherData->maxTempDiff  = $forecastThreeDays[$index]['max_temp_diff'];
     $weatherData->rainyDay     = $forecastThreeDays[$index]['rainy_day'];
