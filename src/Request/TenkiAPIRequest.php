@@ -12,9 +12,9 @@ class TenkiAPIRequest extends Request
     public function __construct($uid)
     {
         $this->queries = [
-            'uid' => $uid,
-            'kind' => "web",
-            'akey' => "18cce8ec1fb2982a4e11dd6b1b3efa36"  // MD5 checksum of "nhk"
+            "uid" => $uid,
+            "kind" => "web",
+            "akey" => "18cce8ec1fb2982a4e11dd6b1b3efa36"  // MD5 checksum of "nhk"
         ];
         parent::__construct();
     }
