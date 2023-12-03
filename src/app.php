@@ -8,6 +8,7 @@ namespace App;
 use App\Request\TenkiAPIRequest;
 use App\Request\WebhookNHKNewsRequest;
 use App\DataTypes\Weather;
+use App\Utils\Algorithm;
 use App\Utils\Telop;
 use Monolog\Level;
 use Monolog\Logger;
@@ -18,11 +19,16 @@ $log->pushHandler(new StreamHandler(__DIR__ . "/../logs/app.log", Level::Debug))
 
 $log->info("program initialized");
 
+function openEnvVariables($path): array | false
+{
+    return parse_ini_file($path);
+}
+
 $dotenvDirectory = __DIR__ . "/../.env";
 $log->info("attempting to load dotenv from $dotenvDirectory");
 
 try {
-    if (!$env = parse_ini_file($dotenvDirectory)) {
+    if (!$env = openEnvVariables($dotenvDirectory)) {
         throw new \Exception("bad .env file", 1);
     }
 } catch (\Exception $e) {
@@ -36,8 +42,18 @@ $log->info("dotenv was successfully loaded");
  * Get environmental variables from .env file.
  */
 
-$webhookUrl = $env["WEBHOOK_URL"];
-$placeId = $env["PLACE_ID"];
+function parseEnvVariables(string $parameter): array
+{
+    $configArray = [];
+    if (!$parameter) return $configArray;
+    foreach (explode(",", $parameter) as $v) {
+        $configArray[] = rtrim($v);
+    }
+    return $configArray;
+}
+
+$webhookUrl = parseEnvVariables($env["WEBHOOK_URL"])[0];
+$placeId = parseEnvVariables($env["PLACE_ID"])[0];
 
 $log->info("webhook destination: $webhookUrl");
 $log->info("place uid: $placeId");
@@ -62,38 +78,58 @@ try {
  * Packing the retrieved data into a dedicated data class.
  */
 
-$weatherData = new Weather();
-$weatherData->locationUid = $placeId;
-$weatherData->locationName = (
-    fn ($prefecture, $districtName) => $prefecture . $districtName)(
-    $response['lv2_info']['name'],
-    $response['name']
-);
-$weatherData->forecastDate = $response['created_date'];
+function composeDataPackage(array $jsonResponse, string $placeId, int $index = 0): Weather
+{
+    $index = Algorithm::clamp($index, 0, 2);
 
-// forecast for three days
-$forecastThreeDays = $response['trf']['forecast'];
+    [$prefecture, $district, $forecastDate, $forecastThreeDays] = [
+        $jsonResponse['lv2_info']['name'],
+        $jsonResponse['name'],
+        $jsonResponse['created_date'],
+        $jsonResponse['trf']['forecast']
+    ];
+    
+    $weatherData = new Weather();
+    $weatherData->locationUid = $placeId;
+    $weatherData->locationName = $prefecture . $district;
+    $weatherData->forecastDate = $forecastDate;
 
-// forecast only for today
-$weatherData->maxTemp = $forecastThreeDays[0]['max_temp'];
-$weatherData->maxTempDiff = $forecastThreeDays[0]['max_temp_diff'];
-$weatherData->minTemp = $forecastThreeDays[0]['min_temp'];
-$weatherData->minTempDiff = $forecastThreeDays[0]['min_temp_diff'];
-$weatherData->rainyDay = $forecastThreeDays[0]['rainy_day'];
-$weatherData->telop = $forecastThreeDays[0]['telop'];
-[
-    $weatherData->weather,
-    $weatherData->weatherEmoji,
-    $weatherData->telopFile
-] = Telop::TelopData[$weatherData->telop];
+    $weatherData->maxTemp      = $forecastThreeDays[$index]['max_temp'];
+    $weatherData->maxTempDiff  = $forecastThreeDays[$index]['max_temp_diff'];
+    $weatherData->rainyDay     = $forecastThreeDays[$index]['rainy_day'];
+    $weatherData->telop        = $forecastThreeDays[$index]['telop'];
+    [$weatherData->weather, $weatherData->weatherEmoji, $weatherData->telopFile] =
+        Telop::TelopData[$weatherData->telop];
 
+    return $weatherData;
+}
+
+function prepareWeatherData(array $response, string $id): array
+{
+    $weatherDataComplex = [];
+    for ($i = 0; $i < 3; $i++) {
+        $weatherDataComplex[] = (composeDataPackage($response, $id, $i));
+    }
+    return $weatherDataComplex;
+}
+
+// forecast only for today (provisional) 
+$weatherData = (prepareWeatherData($response, $placeId))[0];
+
+// prepare the queue based on Webhook URLs
+$sendQueue = [
+    [$weatherData, $webhookUrl]
+];
 
 /**
- * Send a POST request to Webhook API.
+ * Send a POST request to Webhook API
  */
 
-$webhook = new WebhookNHKNewsRequest($webhookUrl, $weatherData);
-$status = $webhook->send();
+while ($sendQueue) {
+    [$data, $dest,] = array_shift($sendQueue);
+    $webhook = new WebhookNHKNewsRequest($dest, $data);
+    $status = $webhook->send();
+}
 
 /**
  * Finish program.
@@ -103,7 +139,6 @@ if (!$status) {
     $log->error("failed to send a message");
     return 1;
 }
-
 $log->info("message successfully sent");
 
 $log->info("finalizing...");
