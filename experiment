@@ -1,0 +1,45 @@
+#!/usr/bin/env php
+<?php
+
+require __DIR__ . "/vendor/autoload.php";
+
+namespace App;
+
+use App\Utils\Others;
+use App\DB\InstanceManager;
+use App\DB\PlaceManager;
+
+enum DestinationType
+{
+    case Discord;
+}
+
+function launchCLIInterface(): void
+{
+    echo "What to edit?" . PHP_EOL;
+
+    $choices = [
+        0 => "Webhook URL",
+        1 => "Destination"
+    ];
+
+    Others::displayChoices($choices);
+
+    $input = Others::getInputInRange(0, count($choices));
+
+    switch ($input) {
+        case 0:
+            $m = new InstanceManager();
+            $m->open(callback: $m->webhook());
+            break;
+
+        case 1:
+            $m = new PlaceManager();
+            break;
+
+        default:
+            echo "Undefined error" . PHP_EOL;
+            exit(1);
+            break;
+    }
+}
