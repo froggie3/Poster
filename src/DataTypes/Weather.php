@@ -7,7 +7,7 @@ namespace App\DataTypes;
 /**
  * Data class that contains the weather for one day
  */
-class Weather
+final class Weather
 {
     public string $locationUid;
     public string $locationName;
@@ -17,8 +17,25 @@ class Weather
     public string $minTemp;
     public string $minTempDiff;
     public string $rainyDay;
-    public string $telop;
+    // public string $telop;
     public string $weather;
     public string $weatherEmoji;
     public string $telopFile;
+
+    public function __construct (string $locationUid, string $locationName, string $forecastDate, string $maxTemp, string $maxTempDiff, string $minTemp, string $minTempDiff, string $rainyDay) {
+        $this->locationUid  = $locationUid;                    
+        $this->locationName = $locationName;                   
+        $this->forecastDate = $forecastDate;                   
+        $this->maxTemp      = $maxTemp;                        
+        $this->maxTempDiff  = $maxTempDiff;                    
+        $this->minTemp      = $minTemp;                        
+        $this->minTempDiff  = $minTempDiff;                    
+        $this->rainyDay     = $rainyDay;                       
+    }
+
+    public function setTelop(string $weather, string $weatherEmoji, string $telopFile) {
+        $this->weather      = $weather;
+        $this->weatherEmoji = $weatherEmoji;
+        $this->telopFile    = $telopFile;
+    }
 }
