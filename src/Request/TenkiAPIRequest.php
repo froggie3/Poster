@@ -19,18 +19,9 @@ class TenkiAPIRequest extends Request
         parent::__construct();
     }
 
-    public function fetch(): array
+    public function fetch(): string 
     {
         $response = $this->get(self::API_ENDPOINT, $this->queries);
-        if (!$response) {
-            return [];
-        }
-        try {
-            $weatherData = json_decode($response, true, JSON_THROW_ON_ERROR);
-        } catch (\JsonException $e) {
-            echo $e->getMessage() . "\n";
-            return [];
-        }
-        return $weatherData;
+        return $response;
     }
 }

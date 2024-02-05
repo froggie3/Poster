@@ -42,12 +42,6 @@ class Request
         // no problem since even it's empty it returns empty string
         $url .= http_build_query($queries);
         $response = file_get_contents($url, false, $context);
-
-        // add a custom exception handler sometime
-        if (!$response) {
-            return false;
-        }
-
         return $response;
     }
 }

@@ -7,6 +7,7 @@ namespace App\Request;
 class RSSRequest extends Request
 {
     private string $feedUrl;
+
     public function __construct(string $feedUrl)
     {
         $this->feedUrl = $feedUrl;

@@ -5,8 +5,13 @@ declare(strict_types=1);
 
 namespace App;
 
+define("MAX_REQUEST_RETRY", 5);
+define("INTERVAL_REQUEST",  2);
+
 use App\Request\TenkiAPIRequest;
 use App\Request\WebhookNHKNewsRequest;
+use App\Writer;
+use App\Parser;
 use App\DataTypes\Weather;
 use App\Utils\Algorithm;
 use App\DataTypes\Telop;
@@ -15,24 +20,14 @@ use App\DataTypes\TelopImageUsed;
 use Monolog\Level;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
+use Monolog\Handler\ErrorLogHandler;
+
 
 
 function openEnvVariables($path): array | false
 {
     return parse_ini_file($path);
 }
-
-
-function parseEnvVariables(string $parameter): array
-{
-    $configArray = [];
-    if (!$parameter) return $configArray;
-    foreach (explode(",", $parameter) as $v) {
-        $configArray[] = rtrim($v);
-    }
-    return $configArray;
-}
-
 
 function composeDataPackage(array $jsonResponse, string $placeId, array $telops, int $index = 0): Weather
 {
@@ -122,11 +117,11 @@ $telops = [100 => new Telop('晴れ',           ':sunny:',                 'tlp1
            414 => new Telop('雪のち雨',       ':cloud_snow:',            'tlp414.png',  -1, new TelopImageUsed(true,  true ),),];
 
 $log = new Logger("App");
-$log->pushHandler(new StreamHandler(__DIR__ . "/../logs/app.log", Level::Debug));
+//$log->pushHandler(new StreamHandler(__DIR__ . "/../logs/app.log", Level::Debug));
+$log->pushHandler(new ErrorLogHandler());
 
-
-$log->info("attempting to load dotenv from $dotenvDirectory");
 $dotenvDirectory = __DIR__ . "/../.env";
+$log->info("attempting to load dotenv from '$dotenvDirectory'");
 
 try {
     if (!$env = openEnvVariables($dotenvDirectory)) {
@@ -142,36 +137,64 @@ try {
 /**
  * Get environmental variables from .env file.
  */
-$webhookUrl = parseEnvVariables($env["WEBHOOK_URL"])[0];
-$placeId = parseEnvVariables($env["PLACE_ID"])[0];
 
-$log->info("webhook destination: $webhookUrl");
-$log->info("place uid: $placeId");
+$log->debug(json_encode($env));
+$webhookUrl = Parser\EnvVariablesParser::parse($env["WEBHOOK_URL"])[0];
+$placeId    = Parser\EnvVariablesParser::parse($env["PLACE_ID"])[0];
+
+$log->info("location UID to get: '$placeId'");
 
 
 /**
- * Send a request to API endpoint.
+ * a function that recursively sends the requests until $retry runs out.
+ * on success, returns JSON-formatted string.
+ * 
+ * @param $placeId the location unique ID that NHK specifies.
+ * @param $retry   the maximum number of times this function retries.  
  */
 
-$fetch = new TenkiAPIRequest($placeId);
-$log->info("sending a request to API endpoint");
+$sendRequest = function ($placeId, $retry = MAX_REQUEST_RETRY) use ($log, &$sendRequest): string {
+    $response = null;
+    $fetch = new TenkiAPIRequest($placeId);
+    $log->info("sending a request to API endpoint");
+    
+    if ($retry == 0) {
+        $log->error("maximum retries reached - terminating");
+        exit(1);
+    } else {
+        $response = $fetch->fetch();
+        try {
+            if (!$response) {
+                throw new \Exception("failed to reach the API endpoint", 1);
+            }
+        } catch (\Exception $e) {
+            $log->error($e->getMessage());
+        } finally {
+            if ($response) {
+                $log->info("the content was successfully fetched");
+                $log->debug($response);
+                return $response; 
+            }
 
-try {
-    if (!$response = $fetch->fetch()) {
-        throw new \Exception("failed to reach the API endpoint", 1);
+            $log->info("retrying ($retry)");
+            sleep(INTERVAL_REQUEST);
+            $sendRequest($placeId, --$retry);
+        }
     }
-} catch (\Exception $e) {
-    $log->error($e->getMessage());
-    return 1;
-}
+};
+
+//$jsonResponse = $sendRequest($placeId);
+$jsonResponse = $sendRequest($placeId);
+
+$data = Parser\JSONParser::parse($jsonResponse);
+$log->debug("json was successfully parsed");
 
 /**
- * Packing the retrieved data into a dedicated data class.
+ * Packing the parsed data into a dedicated data class.
  */
-
 
 // forecast only for today (provisional) 
-$weatherData = (prepareWeatherData($response, $placeId, $telops))[0];
+$weatherData = (prepareWeatherData($data, $placeId, $telops))[0];
 
 // prepare the queue based on Webhook URLs
 $sendQueue = [
@@ -185,18 +208,18 @@ $sendQueue = [
 while ($sendQueue) {
     [$data, $dest,] = array_shift($sendQueue);
     $webhook = new WebhookNHKNewsRequest($dest, $data);
-    $status = $webhook->send();
+
+    if ($webhook->send()) {
+        $log->error("failed to send a message to '$dest'");
+    } else {
+        $log->info("message successfully sent to '$dest'");
+    }
 }
 
 /**
  * Finish program.
  */
 
-if (!$status) {
-    $log->error("failed to send a message");
-    return 1;
-}
-$log->info("message successfully sent");
 $log->info("finalizing...");
 
 return 0;
