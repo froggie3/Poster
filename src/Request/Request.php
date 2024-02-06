@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace App\Request;
 
-use Error;
-
 class Request
 {
     protected array $headers;
@@ -18,7 +16,7 @@ class Request
         ];
     }
 
-    protected function post($url, $payload): string | false
+    public function post($url, $payload): string | false
     {
         $context = stream_context_create([
             'http' => [
@@ -31,7 +29,7 @@ class Request
         return $response;
     }
 
-    protected function get(string $url, array $queries = []): string | false
+    public function get(string $url, array $queries = []): string | false
     {
         $context = stream_context_create([
             'http' => [

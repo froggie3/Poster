@@ -1,17 +1,17 @@
 #!/usr/bin/env php
 <?php
 
-namespace App\XML;
+namespace App\FeedExtractor;
 
-use \App\XML\FeedParser;
+use \App\FeedExtractor\FeedExtractor;
 
-class NitterFeedParser extends FeedParser
+class AtomFeedExtractor extends FeedExtractor
 {
     function __construct()
     {
     }
 
-    public function extractLatestRss(object $XMLElement)
+    public function extract(object $XMLElement)
     {
         $data = $XMLElement->channel->item;
         $array = array();
