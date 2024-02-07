@@ -2,7 +2,7 @@
 
 namespace App\Parser;
 
-class EnvVariablesParser extends Parser
+class EnvVariablesParser
 {
     function __construct()
     {

@@ -22,14 +22,14 @@ CREATE TABLE IF NOT EXISTS articles (
     -- 記事URL
     url TEXT NOT NULL UNIQUE,
     -- 記事公開日時
-    published_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
     -- 登録日時
     created_at INTEGER NOT NULL,
     -- 訪問先サイト識別番号
     feed_id INTEGER NOT NULL,
     -- 訪問先サイト
     FOREIGN KEY (feed_id) REFERENCES feeds (id),
-    CHECK (created_at >= published_at)
+    CHECK (created_at >= updated_at)
 );
 
 -- 投稿先の情報を保存するテーブル
