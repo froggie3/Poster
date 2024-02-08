@@ -6,5 +6,5 @@ namespace App\Interface;
 
 interface ForecastFetcherInterface
 {
-    public function fetchForecast(): void;
+    public function fetchForecast(): array;
 }

@@ -2,3 +2,8 @@
 .env
 .resources
 vendor/
+logs/
+samples/
+*.sqlite3
+*.db
+tools/*

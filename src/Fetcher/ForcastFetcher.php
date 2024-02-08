@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Fetcher;
 
 use Exception;
-use App\{Builder\DiscordRichPresenceForecastProcessor, Utils\ForecastProcess,};
+use App\{Poster\ForecastPoster, Utils\ForecastProcess,};
 use App\Interface\ForecastFetcherInterface;
 use App\DataTypes\Forecast;
 use App\Request\Request;
@@ -16,14 +16,12 @@ use const \Config\{MAX_REQUEST_RETRY, INTERVAL_REQUEST};
 
 class ForcastFetcher implements ForecastFetcherInterface
 {
-    private $logger;
+    private Logger $logger;
     private array $placeIds = [];
-    private string $webhookUrl;
 
-    public function __construct(Logger $logger, string $webhookUrl)
+    public function __construct(Logger $logger)
     {
         $this->logger = $logger;
-        $this->webhookUrl = $webhookUrl;
     }
 
     /**
@@ -77,33 +75,14 @@ class ForcastFetcher implements ForecastFetcherInterface
         $this->placeIds[] = $placeId;
     }
 
-    public function fetchForecast(): void
+    public function fetchForecast(): array
     {
+        $result = [];
         foreach ($this->placeIds as $placeId) {
             $res = $this->sendRequest($placeId);
             # $res = file_get_contents('');
-
-            $fp = new ForecastProcess(json_decode($res));
-            $this->processWebhook($fp->process()[0], $this->webhookUrl);
+            $result[] = new ForecastProcess(json_decode($res));
         }
-    }
-
-    private function processWebhook(Forecast $data, string $url): void
-    {
-        $hook = new DiscordRichPresenceForecastProcessor($data);
-        $res = $this->fireWebhook($url, json_encode($hook->preparePayload()));
-
-        if ($res !== false) {
-            $this->logger->info("message successfully sent to '$url'");
-            return;
-        }
-        $this->logger->error("failed to send a message to '$url'");
-    }
-
-    private function fireWebhook(string $url, string $payloadJson): string | false
-    {
-        $r = new Request();
-        $r->headers[] = "Content-Type: application/json";
-        return $r->post($url, $payloadJson);
+        return $result;
     }
 }

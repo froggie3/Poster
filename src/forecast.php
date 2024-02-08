@@ -6,12 +6,13 @@ namespace App;
 
 require_once __DIR__ . '/./Config/Config.php';
 
-use App\Fetcher\ForcastFetcher;
 use Exception;
+use App\Fetcher\ForcastFetcher;
+use App\Poster\ForecastPoster;
 use Monolog\{Level, Logger, Handler\StreamHandler, Handler\ErrorLogHandler,};
 use const \Config\{WEBHOOK_URL_KEY, PLACE_ID_KEY};
 
-$logger = new Logger("ForcastFetcher", [
+$logger = new Logger("Forecast", [
     new StreamHandler(__DIR__ . "/../logs/app.log", Level::Info),
     new ErrorLogHandler(level: Level::Info),
 ]);
@@ -33,9 +34,22 @@ try {
     return 1;
 }
 
-$ff = new ForcastFetcher($logger, $webhookUrl);
+$fetch = new ForcastFetcher(new Logger("ForcastFetcher", [
+    new StreamHandler(__DIR__ . "/../logs/app.log", Level::Info),
+    new ErrorLogHandler(level: Level::Info),
+]));
 
 $logger->info("Location UID to get: '$placeId'");
-$ff->addQueue($placeId);
+$fetch->addQueue($placeId);
 
-$ff->fetchForecast();
+foreach ($fetch->fetchForecast() as $forecast) {
+    $post = new ForecastPoster(
+        new Logger("ForcastFetcher", [
+            new StreamHandler(__DIR__ . "/../logs/app.log", Level::Info),
+            new ErrorLogHandler(level: Level::Info),
+        ]),
+        $forecast->process()[0],
+        $webhookUrl
+    );
+    $post->post();
+}
