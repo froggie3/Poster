@@ -4,13 +4,9 @@ declare(strict_types=1);
 
 namespace App\Request;
 
-interface RequestTemplate
-{
-    public function post(string $url, string $payload): string | false;
-    public function get(string $url, array $queries = []): string | false;
-}
+use App\Interface\RequestInterface;
 
-class Request implements RequestTemplate
+class Request implements RequestInterface
 {
     public array $headers;
     public array $queries;

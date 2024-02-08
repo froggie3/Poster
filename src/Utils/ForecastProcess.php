@@ -8,16 +8,17 @@ use App\{
     DataTypes\Forecast,
     DataTypes\Telop,
     DataTypes\TelopImageUsed,
+    Interface\ProcessInterface,
 };
 use stdClass;
 use Exception;
 
-class ForecastProcess
+class ForecastProcess implements ProcessInterface
 {
     public stdClass $response;
     public array $forcastTelops;
 
-    function __construct(stdClass $response)
+    public function __construct(stdClass $response)
     {
         $this->response = $response;
         $this->forcastTelops = [
@@ -64,7 +65,7 @@ class ForecastProcess
         ];
     }
 
-    function processOne(stdClass $res, Telop $tp, stdClass $fc): Forecast
+    protected function processOne(stdClass $res, Telop $tp, stdClass $fc): Forecast
     {
         $forecast = new Forecast(
             $res->uid,
@@ -75,8 +76,6 @@ class ForecastProcess
             $fc->min_temp,
             $fc->min_temp_diff,
             $fc->rainy_day,
-        );
-        $forecast->setTelop(
             $tp->distinct_name,
             $tp->emoji_name,
             $tp->telop_filename
@@ -85,7 +84,7 @@ class ForecastProcess
         return $forecast;
     }
 
-    function processThreeDays(): array
+    protected function processThreeDays(): array
     {
         $forecastThreeDays = [];
         foreach ($this->response->trf->forecast as $forecast) {
@@ -100,5 +99,10 @@ class ForecastProcess
         }
 
         return $forecastThreeDays;
+    }
+
+    public function process(): array
+    {
+        return $this->processThreeDays();
     }
 }

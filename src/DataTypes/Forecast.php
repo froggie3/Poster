@@ -17,23 +17,31 @@ class Forecast
     public string $minTemp;
     public string $minTempDiff;
     public string $rainyDay;
-    // public string $telop;
     public string $weather;
     public string $weatherEmoji;
     public string $telopFile;
 
-    public function __construct (string $locationUid, string $locationName, string $forecastDate, string $maxTemp, string $maxTempDiff, string $minTemp, string $minTempDiff, string $rainyDay) {
-        $this->locationUid  = $locationUid;                    
-        $this->locationName = $locationName;                   
-        $this->forecastDate = $forecastDate;                   
-        $this->maxTemp      = $maxTemp;                        
-        $this->maxTempDiff  = $maxTempDiff;                    
-        $this->minTemp      = $minTemp;                        
-        $this->minTempDiff  = $minTempDiff;                    
-        $this->rainyDay     = $rainyDay;                       
-    }
-
-    public function setTelop(string $weather, string $weatherEmoji, string $telopFile) {
+    public function __construct(
+        string $locationUid,
+        string $locationName,
+        string $forecastDate,
+        string $maxTemp,
+        string $maxTempDiff,
+        string $minTemp,
+        string $minTempDiff,
+        string $rainyDay,
+        string $weather,
+        string $weatherEmoji,
+        string $telopFile
+    ) {
+        $this->locationUid  = $locationUid;
+        $this->locationName = $locationName;
+        $this->forecastDate = $forecastDate;
+        $this->maxTemp      = $maxTemp;
+        $this->maxTempDiff  = $maxTempDiff;
+        $this->minTemp      = $minTemp;
+        $this->minTempDiff  = $minTempDiff;
+        $this->rainyDay     = $rainyDay;
         $this->weather      = $weather;
         $this->weatherEmoji = $weatherEmoji;
         $this->telopFile    = $telopFile;

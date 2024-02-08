@@ -2,7 +2,8 @@
     "require": {
         "monolog/monolog": "^3.4",
         "debril/feed-io": "^6.0",
-        "symfony/http-client": "^7.0"
+        "symfony/http-client": "^7.0",
+        "minicli/minicli": "^4.2"
     },
     "autoload": {
         "psr-4": {

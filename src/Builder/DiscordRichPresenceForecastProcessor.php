@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Builder;
 
 use App\DataTypes\Forecast;
+use App\Interface\DiscordRichPresenceBuilderInterface;
 use App\DataTypes\Discord\{Author, Card, Embed, Field, Footer, Thumbnail};
 
 
-class ForecastRichPresenceBuilder extends Forecast implements RichPresenceBuilderInterface
+class DiscordRichPresenceForecastProcessor extends Forecast implements DiscordRichPresenceBuilderInterface
 {
     public const AuthorUrl = "https://yokkin.com/d/forecast_resource/author.jpg";
     public const AvatarUrl = "https://yokkin.com/d/forecast_resource/avatar.png";

@@ -1,7 +1,0 @@
-#!/usr/bin/php8.2
-<?php
-
-require __DIR__ . "/vendor/autoload.php";
-
-$status = require_once __DIR__ . "/src/app.php";
-exit($status);

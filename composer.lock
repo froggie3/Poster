@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "43eea50ffdad735c5152ba58834a1234",
+    "content-hash": "56247b7ec929c04f0aac108a1c25b3d4",
     "packages": [
         {
             "name": "debril/feed-io",
@@ -77,6 +77,61 @@
                 "source": "https://github.com/alexdebril/feed-io/tree/v6.0.3"
             },
             "time": "2023-10-16T14:12:49+00:00"
+        },
+        {
+            "name": "minicli/minicli",
+            "version": "4.2.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/minicli/minicli.git",
+                "reference": "1675c0609205c106bb7c2353888dec361808d92e"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/minicli/minicli/zipball/1675c0609205c106bb7c2353888dec361808d92e",
+                "reference": "1675c0609205c106bb7c2353888dec361808d92e",
+                "shasum": ""
+            },
+            "require": {
+                "ext-readline": "*",
+                "php": ">=8.1"
+            },
+            "require-dev": {
+                "laravel/pint": "^1.10",
+                "mockery/mockery": "^1.5",
+                "pestphp/pest": "^2.5",
+                "phpstan/phpstan": "^1.10"
+            },
+            "type": "library",
+            "autoload": {
+                "files": [
+                    "src/helpers.php"
+                ],
+                "psr-4": {
+                    "Minicli\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Experimental micro CLI framework for PHP",
+            "homepage": "https://github.com/minicli/minicli",
+            "keywords": [
+                "cli",
+                "command-line"
+            ],
+            "support": {
+                "issues": "https://github.com/minicli/minicli/issues",
+                "source": "https://github.com/minicli/minicli/tree/4.2.0"
+            },
+            "funding": [
+                {
+                    "url": "https://github.com/erikaheidi",
+                    "type": "github"
+                }
+            ],
+            "time": "2023-06-27T08:16:45+00:00"
         },
         {
             "name": "monolog/monolog",
