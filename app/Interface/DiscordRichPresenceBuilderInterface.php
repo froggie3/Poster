@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Interface;
 
-use App\DataTypes\Discord\Card;
+use App\Data\Discord\Card;
 
 interface DiscordRichPresenceBuilderInterface
 {

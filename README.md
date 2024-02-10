@@ -13,7 +13,7 @@ Clone this repository.
 git clone
 ```
 
-Setup your own `.env` file in this way, and place it on `../src`:
+Setup your own `.env` file in this way, and place it on `../app`:
 
 ```bash
 PLACE_ID=
