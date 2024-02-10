@@ -1,0 +1,24 @@
+#!/usr/bin/php8.2
+<?php
+
+declare(strict_types=1);
+
+require __DIR__ . "/../vendor/autoload.php";
+
+if (php_sapi_name() !== 'cli') {
+    exit;
+}
+
+use Minicli\App;
+use Minicli\Exception\CommandNotFoundException;
+
+$app = new App([
+    'app_path' => [ __DIR__ . '/../app/Command', ],
+    'debug' => true,
+]);
+
+try {
+    $app->runCommand($argv);
+} catch (CommandNotFoundException $e) {
+    echo 'An error occurred running the command: ',  $e->getMessage(), "\n";
+}
