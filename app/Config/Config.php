@@ -6,8 +6,9 @@ namespace App;
 
 class Config
 {
-    const MAX_REQUEST_RETRY = 5;
-    const INTERVAL_REQUEST  = 2;
-    const CONNECTION_TIMEOUT = 2;
-    const MONOLOG_LOG_LEVEL = \Monolog\Level::Debug;
+    public const CONNECTION_TIMEOUT_SECONDS = 2;
+    public const INTERVAL_REQUEST_SECONDS = 2;
+    public const FEED_UPDATE_LAZYNESS_SECONDS = 60 * 60 * 24 * 7;
+    public const MAX_REQUEST_RETRY = 5;
+    public const MONOLOG_LOG_LEVEL = \Monolog\Level::Debug;
 }

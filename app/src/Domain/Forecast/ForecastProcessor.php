@@ -2,94 +2,21 @@
 
 declare(strict_types=1);
 
-namespace App\Fetcher;
+namespace App\Domain\Forecast;
 
-use App\Config;
-use App\Constants;
 use App\Data\Forecast;
 use App\Data\Telop;
 use App\Data\TelopImageUsed;
-use App\Interface\ForecastFetcherInterface;
-use App\Interface\ProcessInterface;
-use App\Utils\Http;
-use Exception;
-use GuzzleHttp\Client;
-use GuzzleHttp\Psr7\Request;
-use Monolog\Handler\ErrorLogHandler;
-use Monolog\Handler\StreamHandler;
-use Monolog\Logger;
-use stdClass;
 
-class Query
+class ForecastProcessor
 {
-    public string $uid;
-    public string $kind = 'web';
-    public string $akey;
+    public \stdClass $response;
+    public array $ForecastTelops;
 
-    private string $akey_plain = 'nhk';
-
-    public function __construct(string $placeId)
+    public function __construct(string $response)
     {
-        $this->uid = $placeId;
-        $this->akey = hash('md5', $this->akey_plain);
-    }
-
-    public function buildQuery()
-    {
-        return http_build_query($this);
-    }
-}
-
-class ForcastFetcher implements ForecastFetcherInterface
-{
-    private Logger $logger;
-    private Client $client;
-    private array $placeIds = [];
-
-    public function __construct(Logger $logger)
-    {
-        $this->logger = $logger;
-        $this->client = new Client([
-            'timeout' => Config::CONNECTION_TIMEOUT,
-            'header' => ['User-Agent' => 'Mozilla/5.0'],
-        ]);
-    }
-
-    public function addQueue(string $placeId)
-    {
-        $this->placeIds[] = $placeId;
-        $this->logger->info("UID '$placeId' enqueued");
-    }
-
-    public function fetchForecast(): array
-    {
-        $result = [];
-        $loggingPath = __DIR__ . '/../../../logs/app.log';
-        $LogHandlers = [new StreamHandler($loggingPath, Config::MONOLOG_LOG_LEVEL), new ErrorLogHandler()];
-
-        foreach ($this->placeIds as $placeId) {
-            $query = (new Query($placeId))->buildQuery();
-            $request = new Request('GET', "https://www.nhk.or.jp/weather-data/v1/lv3/wx/?$query");
-            $http = new Http(new Logger(Constants::MODULE_HTTP, $LogHandlers), $this->client);
-            $res = $http->sendRequest($request);
-
-            $result[] = new ForecastProcess(json_decode($res));
-        }
-
-        $this->logger->info("Fetching finished");
-        return $result;
-    }
-}
-
-class ForecastProcess implements ProcessInterface
-{
-    public stdClass $response;
-    public array $forcastTelops;
-
-    public function __construct(stdClass $response)
-    {
-        $this->response = $response;
-        $this->forcastTelops = [
+        $this->response = json_decode($response);
+        $this->ForecastTelops = [
             100 => new Telop('晴れ',           ':sunny:',                 'tlp100.png',  -1, new TelopImageUsed(true,  true),),
             101 => new Telop('晴れ時々くもり', ':partly_sunny:',          'tlp101.png',  -1, new TelopImageUsed(true,  true),),
             102 => new Telop('晴れ一時雨',     ':white_sun_rain_cloud:',  'tlp102.png',  -1, new TelopImageUsed(true,  true),),
@@ -133,7 +60,7 @@ class ForecastProcess implements ProcessInterface
         ];
     }
 
-    protected function processOne(stdClass $res, Telop $tp, stdClass $fc): Forecast
+    protected function processOne(\stdClass $res, Telop $tp, \stdClass $fc): Forecast
     {
         $forecast = new Forecast(
             $res->uid,
@@ -156,12 +83,12 @@ class ForecastProcess implements ProcessInterface
     {
         $forecastThreeDays = [];
         foreach ($this->response->trf->forecast as $forecast) {
-            if (!array_key_exists($forecast->telop, $this->forcastTelops)) {
-                throw new Exception('Unsupported telop');
+            if (!array_key_exists($forecast->telop, $this->ForecastTelops)) {
+                throw new \Exception('Unsupported telop');
             }
             $forecastThreeDays[] = self::processOne(
                 $this->response,
-                $this->forcastTelops[$forecast->telop],
+                $this->ForecastTelops[$forecast->telop],
                 $forecast
             );
         }

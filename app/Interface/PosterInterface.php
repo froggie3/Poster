@@ -6,5 +6,5 @@ namespace App\Interface;
 
 interface PosterInterface
 {
-    public function post(): void;
+    public function post();
 }

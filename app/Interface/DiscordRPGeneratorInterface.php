@@ -6,7 +6,7 @@ namespace App\Interface;
 
 use App\Data\Discord\Card;
 
-interface DiscordRichPresenceBuilderInterface
+interface DiscordRPGeneratorInterface
 {
-    public function preparePayload(): Card;
+    public function process(): Card;
 }

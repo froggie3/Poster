@@ -18,13 +18,10 @@ CREATE TABLE if not exists locations (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     -- 地域を示す一意な番号
     place_id TEXT NOT NULL,
-    -- どの Webhook によって必要されているのか
-    webhook_id INTEGER NOT NULL,
     -- 最終更新日時
     updated_at INTEGER NOT NULL,
     -- 登録日時
-    created_at INTEGER NOT NULL,
-    FOREIGN KEY (webhook_id) REFERENCES webhooks (id)
+    created_at INTEGER NOT NULL
 );
 
 -- 記事の情報を保存するテーブル
@@ -35,12 +32,12 @@ CREATE TABLE IF NOT EXISTS articles (
     title TEXT NOT NULL,
     -- 記事URL
     url TEXT NOT NULL UNIQUE,
-    -- 訪問先サイト識別番号
-    feed_id INTEGER NOT NULL,
     -- 記事公開日時
     updated_at INTEGER NOT NULL,
     -- 登録日時
     created_at INTEGER NOT NULL,
+    -- 訪問先サイト識別番号
+    feed_id INTEGER NOT NULL,
     -- 訪問先サイト
     FOREIGN KEY (feed_id) REFERENCES feeds (id),
     CHECK (created_at >= updated_at)
@@ -54,12 +51,12 @@ CREATE TABLE IF NOT EXISTS webhooks (
     title TEXT,
     -- 投稿先エンドポイント
     url TEXT NOT NULL,
-    -- 用途（Webhook / フィード） 
-    source_id INTEGER NOT NULL,
     -- 更新日時
     updated_at INTEGER NOT NULL,
     -- 登録日時
     created_at INTEGER NOT NULL,
+    -- 用途（Webhook / フィード） 
+    source_id INTEGER NOT NULL,
     FOREIGN KEY (source_id) REFERENCES sources (id),
     CHECK (updated_at >= created_at)
 );
@@ -76,7 +73,7 @@ CREATE TABLE IF NOT EXISTS post_history (
     article_id INTEGER,
     -- 天気予報の地域とその登録先のペアの識別番号
     location_id INTEGER,
-    -- 
+    -- 用途（Webhook / フィード） 
     source_id INTEGER NOT NULL,
     -- Webhook の投稿先の識別番号
     FOREIGN KEY (webhook_id) REFERENCES webhooks (id),
@@ -96,7 +93,7 @@ CREATE TABLE if not exists sources (
 INSERT INTO
     sources (name)
 VALUES
-    ('forcast');
+    ('Forecast');
 
 INSERT INTO
     sources (name)

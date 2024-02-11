@@ -12,7 +12,7 @@ class Constants
 
     // ログ用のモジュール名の設定
     const MODULE_FEED_FETCHER = 'FeedFetcher';
-    const MODULE_FORECAST_FETCHER = "ForcastFetcher";
-    const MODULE_FORECAST_POSTER = "ForcastPoster";
+    const MODULE_FORECAST_FETCHER = "ForecastFetcher";
+    const MODULE_FORECAST_POSTER = "ForecastPoster";
     const MODULE_HTTP = "Http";
 }

@@ -2,17 +2,21 @@
 
 declare(strict_types=1);
 
-namespace App\Builder;
+namespace App\Domain\Forecast;
 
+use App\Data\Discord\Author;
+use App\Data\Discord\Card;
+use App\Data\Discord\Embed;
+use App\Data\Discord\Field;
+use App\Data\Discord\Footer;
+use App\Data\Discord\Thumbnail;
 use App\Data\Forecast;
-use App\Interface\DiscordRichPresenceBuilderInterface;
-use App\Data\Discord\{Author, Card, Embed, Field, Footer, Thumbnail};
+use App\Interface\DiscordRPGeneratorInterface;
 
-
-class DiscordRichPresenceForecastProcessor extends Forecast implements DiscordRichPresenceBuilderInterface
+class ForecastDiscordRPGenerator extends Forecast implements DiscordRPGeneratorInterface
 {
-    public const AuthorUrl = "https://yokkin.com/d/forecast_resource/author.jpg";
-    public const AvatarUrl = "https://yokkin.com/d/forecast_resource/avatar.png";
+    public string $authorUrl;
+    public string $avatarUrl;
     public string $thumbnailUrl;
     public string $locationUrl;
 
@@ -23,11 +27,13 @@ class DiscordRichPresenceForecastProcessor extends Forecast implements DiscordRi
             $this->{$key} = $var;
         }
 
+        $this->authorUrl = "https://yokkin.com/d/forecast_resource/author.jpg";
+        $this->avatarUrl = "https://yokkin.com/d/forecast_resource/avatar.png";
         $this->thumbnailUrl = "https://yokkin.com/d/forecast_resource/{$this->telopFile}";
         $this->locationUrl = "https://www.nhk.or.jp/kishou-saigai/city/weather/{$this->locationUid}";
     }
 
-    public function preparePayload(): Card
+    public function process(): Card
     {
         return new Card([
             "content" => sprintf(
@@ -35,7 +41,7 @@ class DiscordRichPresenceForecastProcessor extends Forecast implements DiscordRi
                 (new \DateTimeImmutable($this->forecastDate))->format("H:i")
             ),
             "username" => "NHK NEWS WEB",
-            "avatar_url" => self::AvatarUrl,
+            "avatar_url" => $this->avatarUrl,
             "embeds" => [
                 new Embed([
                     "title" => "きょうの天気予報",
@@ -46,12 +52,12 @@ class DiscordRichPresenceForecastProcessor extends Forecast implements DiscordRi
                     "thumbnail" => new Thumbnail(["url" => $this->thumbnailUrl,]),
                     "footer" => new Footer([
                         "text" => "Deployed by Yokkin",
-                        "icon_url" => self::AuthorUrl,
+                        "icon_url" => $this->authorUrl,
                     ]),
                     "author" => new Author([
                         "name" => "NHK NEWS WEB",
                         "url" => "https://www3.nhk.or.jp/news/",
-                        "icon_url" => self::AvatarUrl,
+                        "icon_url" => $this->avatarUrl,
                     ]),
                     "fields" => [
                         new Field([

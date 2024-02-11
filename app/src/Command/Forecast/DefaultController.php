@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Command\Forecast;
 
-use \App\Constants;
 use \App\Config;
+use \App\Constants;
+use \App\Domain\Forecast\Forecast;
+use \Monolog\Handler\ErrorLogHandler;
+use \Monolog\Handler\StreamHandler;
+use \Monolog\Logger;
 use Minicli\Command\CommandController;
-use \Exception;
-use \App\Fetcher\ForcastFetcher;
-use \App\Poster\ForecastPoster;
-use \Monolog\{Logger, Handler\StreamHandler, Handler\ErrorLogHandler,};
 
 class DefaultController extends CommandController
 {
@@ -18,33 +18,27 @@ class DefaultController extends CommandController
     {
         $loggingPath = __DIR__ . '/../../../logs/app.log';
 
-        $LogHandlers = [new StreamHandler($loggingPath, Config::MONOLOG_LOG_LEVEL), new ErrorLogHandler()];
-        $logger = new Logger("Forecast", $LogHandlers);
+        $logHandlers = [new StreamHandler($loggingPath, Config::MONOLOG_LOG_LEVEL), new ErrorLogHandler()];
+        $logger = new Logger("Forecast", $logHandlers);
 
         try {
             if (!$placeId = getenv(Constants::PLACE_ID_KEY))
-                throw new Exception("Environment variable '" . Constants::PLACE_ID_KEY . "' is not set");
+                throw new \Exception("Environment variable '" . Constants::PLACE_ID_KEY . "' is not set");
 
             if (gettype($placeId) !== 'string')
-                throw new Exception("Environment variable '" . Constants::PLACE_ID_KEY . "' must be string");
+                throw new \Exception("Environment variable '" . Constants::PLACE_ID_KEY . "' must be string");
 
             if (!$webhookUrl = getenv(Constants::WEBHOOK_URL_KEY))
-                throw new Exception("Environment variable '" . Constants::WEBHOOK_URL_KEY . "' is not set");
+                throw new \Exception("Environment variable '" . Constants::WEBHOOK_URL_KEY . "' is not set");
 
             if (gettype($webhookUrl) !== 'string')
-                throw new Exception("Environment variable '" . Constants::WEBHOOK_URL_KEY . "' must be string");
-        } catch (Exception $e) {
+                throw new \Exception("Environment variable '" . Constants::WEBHOOK_URL_KEY . "' must be string");
+        } catch (\Exception $e) {
             $logger->error($e->getMessage());
             return;
         }
 
-        $fetch = new ForcastFetcher(new Logger(Constants::MODULE_FORECAST_FETCHER, $LogHandlers));
-        $logger->info("Location UID to get: '$placeId'");
-        $fetch->addQueue($placeId);
-
-        foreach ($fetch->fetchForecast() as $forecast) {
-            $post = new ForecastPoster(new Logger(Constants::MODULE_FORECAST_POSTER, $LogHandlers), $forecast->process()[0], $webhookUrl);
-            $post->post();
-        }
+        $forecast = new Forecast($logger, $placeId, $webhookUrl);
+        $forecast->process();
     }
 }

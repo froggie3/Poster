@@ -4,39 +4,41 @@ declare(strict_types=1);
 
 namespace App\Command\Feed;
 
-use \App\Constants;
-use \App\Config;
+use \App\Domain\Feed\Feed;
 use Minicli\Command\CommandController;
 use \App\DB\Database;
+use Monolog\Logger;
+use \App\Config;
+use \App\Constants;
+use \App\Data\CommandFlags\FeedFetcherFlags;
 use \App\Fetcher\FeedFetcher;
-use \Monolog\{Logger, Handler\StreamHandler, Handler\ErrorLogHandler,};
+use \Monolog\Handler\ErrorLogHandler;
+use \Monolog\Handler\StreamHandler;
 
 // command-line flags and parameters
-const  FLAG_FORCE_UPDATE = 'force-update';
+const FLAG_FORCE_UPDATE = 'force-update';
 const PARAM_DATABASE_DIR = 'database-dir';
 
 class DefaultController extends CommandController
 {
     public function handle(): void
     {
-        $databasePath = $this->hasParam(PARAM_DATABASE_DIR)
-            ? $this->getParam(PARAM_DATABASE_DIR)
-            : __DIR__ . '/../../../../sqlite.db';
+        $flags = new FeedFetcherFlags();
 
-        $loggingPath = __DIR__ . '/../../../logs/app.log';
-
-        if ($this->hasFlag(FLAG_FORCE_UPDATE)) {
-            // 直ちに最新のフィードを取得する場合の処理
-            $this->display("FLAG_FORCE_UPDATE on");
+        if ($this->hasParam(PARAM_DATABASE_DIR)) {
+            $databasePath = $this->getParam(PARAM_DATABASE_DIR);
+            $flags = $flags->setDatabasePath($databasePath);
         }
 
-        $db = new Database($databasePath);
-        $logger = new Logger(Constants::MODULE_FEED_FETCHER, [
-            new StreamHandler($loggingPath, Config::MONOLOG_LOG_LEVEL),
-            new ErrorLogHandler(),
-        ]);
+        if ($this->hasFlag(FLAG_FORCE_UPDATE)) {
+            $flags = $flags->setForced($this->hasFlag(FLAG_FORCE_UPDATE));
+        }
 
-        $fetcher = new FeedFetcher($logger, $db);
-        $fetcher->fetchFeeds();
+        $loggingPath = __DIR__ . '/../../../logs/app.log';
+        $logger = new Logger("Feed", [
+            new StreamHandler($loggingPath, Config::MONOLOG_LOG_LEVEL), new ErrorLogHandler(),
+        ]);
+        $feed = new Feed($logger, $flags);
+        $feed->process();
     }
 }

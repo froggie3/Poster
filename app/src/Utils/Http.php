@@ -33,9 +33,9 @@ class Http
                 $response = $this->client->send($request);
             } catch (GuzzleException $e) {
                 $this->logger->error("Failed to reach the API endpoint: " . $e->getMessage());
-                $this->logger->info("Retrying ($retry)");
+                $this->logger->info("Retrying", ['retry left' => $retry]);
 
-                sleep(Config::INTERVAL_REQUEST);
+                sleep(Config::INTERVAL_REQUEST_SECONDS);
                 $this->sendRequest($request, --$retry);
             }
             $body = (string)$response->getBody();
