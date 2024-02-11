@@ -17,7 +17,7 @@ use \Monolog\Handler\StreamHandler;
 
 // command-line flags and parameters
 const FLAG_FORCE_UPDATE = 'force-update';
-const PARAM_DATABASE_DIR = 'database-dir';
+const PARAM_DATABASE_PATH = 'database-path';
 
 class DefaultController extends CommandController
 {
@@ -25,13 +25,14 @@ class DefaultController extends CommandController
     {
         $flags = new FeedFetcherFlags();
 
-        if ($this->hasParam(PARAM_DATABASE_DIR)) {
-            $databasePath = $this->getParam(PARAM_DATABASE_DIR);
+        if ($this->hasParam(PARAM_DATABASE_PATH)) {
+            $databasePath = $this->getParam(PARAM_DATABASE_PATH);
             $flags = $flags->setDatabasePath($databasePath);
         }
 
         if ($this->hasFlag(FLAG_FORCE_UPDATE)) {
             $flags = $flags->setForced($this->hasFlag(FLAG_FORCE_UPDATE));
+            //var_dump($flags);
         }
 
         $loggingPath = __DIR__ . '/../../../logs/app.log';

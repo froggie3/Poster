@@ -28,12 +28,12 @@ class FeedFetcherFlags
     public function setForced(bool $isForced): self
     {
         $this->isForced = $isForced;
-        return new self;
+        return $this;
     }
 
     public function setDatabasePath(string $databasePath): self
     {
         $this->databasePath = $databasePath;
-        return new self;
+        return $this;
     }
 }
