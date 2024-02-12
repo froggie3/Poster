@@ -4,37 +4,32 @@ declare(strict_types=1);
 
 namespace App\Domain\Forecast;
 
-use \App\Config;
-use \App\Constants;
-use \Monolog\Handler\ErrorLogHandler;
-use \Monolog\Handler\StreamHandler;
-use \Monolog\Logger;
+use Monolog\Logger;
+use App\Data\Discord\Card;
+use App\Utils\CardPoster;
+use App\Utils\ClientFactory;
 
 class Forecast
 {
+    private \App\Data\Forecast $resultProcessed;
+    private array $queue = [];
+    private Card $card;
     private Logger $logger;
     private string $placeId;
+    private string $resultFetched;
     private string $webhookUrl;
-    private array $queue = [];
-    private string $loggingPath;
-    private array $logHandlers;
 
-    function __construct(Logger $logger, string $placeId, string $webhookUrl)
+    public function __construct(Logger $logger, string $placeId, string $webhookUrl)
     {
         $this->logger = $logger;
         $this->placeId = $placeId;
         $this->webhookUrl = $webhookUrl;
-        $this->loggingPath = __DIR__ . '/../../../logs/app.log';
-        $this->logHandlers = [
-            new StreamHandler($this->loggingPath, Config::MONOLOG_LOG_LEVEL),
-            new ErrorLogHandler()
-        ];
         $this->addQueue($this->placeId);
     }
 
     public function addQueue(string $placeId)
     {
-        $this->logger->info("Enqueued", ['uid' => $placeId]);
+        $this->logger->debug("Enqueued", ['uid' => $placeId]);
         $this->queue[] = $placeId;
     }
 
@@ -50,19 +45,39 @@ class Forecast
     private function processInside(string $placeId): void
     {
         $fetcher = new ForecastFetcher(
-            new Logger(Constants::MODULE_FORECAST_FETCHER, $this->logHandlers),
+            $this->logger,
+            $this->createClient(['User-Agent' => 'Mozilla/5.0'])->create(),
             $placeId
         );
-        $resultFetched = $fetcher->fetch();
-        $processor = new ForecastProcessor($resultFetched);
-        $resultProcessed = $processor->process()[0];
-        $rpGenerator = new ForecastDiscordRPGenerator($resultProcessed);
-        $card = $rpGenerator->process();
-        $poster = new ForecastPoster(
-            new Logger(Constants::MODULE_FORECAST_POSTER, $this->logHandlers),
-            $card,
+        $this->resultFetched = $fetcher->fetch();
+        $this->logger->info("Fetching finished");
+
+        $processor = new ForecastProcessor(
+            $this->logger,
+            $this->resultFetched
+        );
+        $this->resultProcessed = $processor->process();
+        $this->logger->info("Response conversion finished");
+
+        $rpGenerator = new ForecastDiscordRPGenerator(
+            $this->logger,
+            $this->resultProcessed
+        );
+        $this->card = $rpGenerator->process();
+        $this->logger->info("Card generation finished");
+
+        $poster = new CardPoster(
+            $this->logger,
+            $this->createClient(['User-Agent' => 'Mozilla/5.0', "Content-Type" => "application/json"])->create(),
+            $this->card,
             $this->webhookUrl
         );
         $poster->post();
+        $this->logger->info("Posting finished");
+    }
+
+    private function createClient(array $headers)
+    {
+        return new ClientFactory($this->logger, $headers);
     }
 }

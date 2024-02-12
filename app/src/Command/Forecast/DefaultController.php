@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace App\Command\Forecast;
 
-use \App\Config;
-use \App\Constants;
-use \App\Domain\Forecast\Forecast;
-use \Monolog\Handler\ErrorLogHandler;
-use \Monolog\Handler\StreamHandler;
-use \Monolog\Logger;
+use App\Config;
+use App\Constants;
+use App\Domain\Forecast\Forecast;
 use Minicli\Command\CommandController;
+use Monolog\Handler\ErrorLogHandler;
+use Monolog\Handler\StreamHandler;
+use Monolog\Logger;
 
 class DefaultController extends CommandController
 {

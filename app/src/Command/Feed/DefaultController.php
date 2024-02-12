@@ -4,16 +4,13 @@ declare(strict_types=1);
 
 namespace App\Command\Feed;
 
-use \App\Domain\Feed\Feed;
+use App\Config;
+use App\Data\CommandFlags\FeedFetcherFlags;
+use App\Domain\Feed\Feed;
 use Minicli\Command\CommandController;
-use \App\DB\Database;
+use Monolog\Handler\ErrorLogHandler;
+use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
-use \App\Config;
-use \App\Constants;
-use \App\Data\CommandFlags\FeedFetcherFlags;
-use \App\Fetcher\FeedFetcher;
-use \Monolog\Handler\ErrorLogHandler;
-use \Monolog\Handler\StreamHandler;
 
 // command-line flags and parameters
 const FLAG_FORCE_UPDATE = 'force-update';

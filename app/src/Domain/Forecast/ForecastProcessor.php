@@ -7,15 +7,18 @@ namespace App\Domain\Forecast;
 use App\Data\Forecast;
 use App\Data\Telop;
 use App\Data\TelopImageUsed;
+use Monolog\Logger;
 
 class ForecastProcessor
 {
     public \stdClass $response;
     public array $ForecastTelops;
+    private Logger $logger;
 
-    public function __construct(string $response)
+    public function __construct(Logger $logger, string $response)
     {
         $this->response = json_decode($response);
+        $this->logger = $logger;
         $this->ForecastTelops = [
             100 => new Telop('晴れ',           ':sunny:',                 'tlp100.png',  -1, new TelopImageUsed(true,  true),),
             101 => new Telop('晴れ時々くもり', ':partly_sunny:',          'tlp101.png',  -1, new TelopImageUsed(true,  true),),
@@ -58,6 +61,8 @@ class ForecastProcessor
             413 => new Telop('雪のちくもり',   ':cloud_snow:',            'tlp413.png',  -1, new TelopImageUsed(true,  true),),
             414 => new Telop('雪のち雨',       ':cloud_snow:',            'tlp414.png',  -1, new TelopImageUsed(true,  true),),
         ];
+
+        $this->logger->debug("Initialized");
     }
 
     protected function processOne(\stdClass $res, Telop $tp, \stdClass $fc): Forecast
@@ -82,7 +87,9 @@ class ForecastProcessor
     protected function processThreeDays(): array
     {
         $forecastThreeDays = [];
-        foreach ($this->response->trf->forecast as $forecast) {
+
+        foreach ($this->response->trf->forecast as $day => $forecast) {
+            $this->logger->debug("Processing response", ["day" => $day + 1]);
             if (!array_key_exists($forecast->telop, $this->ForecastTelops)) {
                 throw new \Exception('Unsupported telop');
             }
@@ -96,8 +103,8 @@ class ForecastProcessor
         return $forecastThreeDays;
     }
 
-    public function process(): array
+    public function process(): Forecast
     {
-        return $this->processThreeDays();
+        return $this->processThreeDays()[0];
     }
 }

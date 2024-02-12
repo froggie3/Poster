@@ -12,6 +12,7 @@ use App\Data\Discord\Footer;
 use App\Data\Discord\Thumbnail;
 use App\Data\Forecast;
 use App\Interface\DiscordRPGeneratorInterface;
+use Monolog\Logger;
 
 class ForecastDiscordRPGenerator extends Forecast implements DiscordRPGeneratorInterface
 {
@@ -19,9 +20,11 @@ class ForecastDiscordRPGenerator extends Forecast implements DiscordRPGeneratorI
     public string $avatarUrl;
     public string $thumbnailUrl;
     public string $locationUrl;
+    private Logger $logger;
 
-    public function __construct(Forecast $data)
+    public function __construct(Logger $logger, Forecast $data)
     {
+        $this->logger = $logger;
         // データクラスから値を自身にコピーする
         foreach ($data as $key => $var) {
             $this->{$key} = $var;
@@ -31,6 +34,8 @@ class ForecastDiscordRPGenerator extends Forecast implements DiscordRPGeneratorI
         $this->avatarUrl = "https://yokkin.com/d/forecast_resource/avatar.png";
         $this->thumbnailUrl = "https://yokkin.com/d/forecast_resource/{$this->telopFile}";
         $this->locationUrl = "https://www.nhk.or.jp/kishou-saigai/city/weather/{$this->locationUid}";
+
+        $this->logger->debug("Rich presence generation initialized");
     }
 
     public function process(): Card
