@@ -8,6 +8,7 @@ use Monolog\Logger;
 use App\Data\Discord\Card;
 use App\Utils\CardPoster;
 use App\Utils\ClientFactory;
+use GuzzleHttp\Client;
 
 class Forecast
 {
@@ -15,6 +16,7 @@ class Forecast
     private array $queue = [];
     private Card $card;
     private Logger $logger;
+
     private string $placeId;
     private string $resultFetched;
     private string $webhookUrl;
@@ -36,6 +38,7 @@ class Forecast
     public function process(): void
     {
         $this->logger->debug("process() called", ['queue count' => count($this->queue)]);
+
         foreach ($this->queue as $placeId) {
             $this->logger->info("Processing", ['uid' => $placeId]);
             $this->processInside($placeId);
@@ -46,7 +49,12 @@ class Forecast
     {
         $fetcher = new ForecastFetcher(
             $this->logger,
-            $this->createClient(['User-Agent' => 'Mozilla/5.0'])->create(),
+            (new ClientFactory(
+                $this->logger,
+                [
+                    'User-Agent' => 'Mozilla/5.0'
+                ]
+            ))->create(),
             $placeId
         );
         $this->resultFetched = $fetcher->fetch();
@@ -68,16 +76,17 @@ class Forecast
 
         $poster = new CardPoster(
             $this->logger,
-            $this->createClient(['User-Agent' => 'Mozilla/5.0', "Content-Type" => "application/json"])->create(),
+            (new ClientFactory(
+                $this->logger,
+                [
+                    'User-Agent' => 'Mozilla/5.0',
+                    'Content-Type' => 'application/json'
+                ]
+            ))->create(),
             $this->card,
             $this->webhookUrl
         );
         $poster->post();
         $this->logger->info("Posting finished");
-    }
-
-    private function createClient(array $headers)
-    {
-        return new ClientFactory($this->logger, $headers);
     }
 }

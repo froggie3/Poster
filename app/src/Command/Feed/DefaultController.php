@@ -14,12 +14,13 @@ use Monolog\Logger;
 
 // command-line flags and parameters
 const FLAG_FORCE_UPDATE = 'force-update';
+const FLAG_NO_UPDATE_CHECK = 'no-update-check';
 const PARAM_DATABASE_PATH = 'database-path';
 
 class DefaultController extends CommandController
 {
     public function handle(): void
-    {
+    {   
         $flags = new FeedFetcherFlags();
 
         if ($this->hasParam(PARAM_DATABASE_PATH)) {
@@ -29,7 +30,10 @@ class DefaultController extends CommandController
 
         if ($this->hasFlag(FLAG_FORCE_UPDATE)) {
             $flags = $flags->setForced($this->hasFlag(FLAG_FORCE_UPDATE));
-            //var_dump($flags);
+        }
+
+        if ($this->hasFlag(FLAG_NO_UPDATE_CHECK)) {
+            $flags = $flags->setUpdateSkipped($this->hasFlag(FLAG_NO_UPDATE_CHECK));
         }
 
         $loggingPath = __DIR__ . '/../../../logs/app.log';

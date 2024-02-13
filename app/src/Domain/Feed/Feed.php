@@ -8,7 +8,6 @@ use App\Data\CommandFlags\FeedFetcherFlags;
 use App\DB\Database;
 use App\Utils\CardPoster;
 use App\Utils\ClientFactory;
-use FeedIo\Adapter\Http\Client;
 use Monolog\Logger;
 
 
@@ -17,8 +16,7 @@ class Feed
     private Database $db;
     private FeedFetcherFlags $flags;
     private Logger $logger;
-    private array $articles = [];  // サイトの識別番号をキーにもつ記事リスト
-    private array $postQueue = [];  // 投稿キュー
+    private array $posts = [];
 
     public function __construct(Logger $logger, FeedFetcherFlags $flags)
     {
@@ -26,123 +24,90 @@ class Feed
         $this->logger = $logger;
         $this->logger->debug("Feed got ready", ['flags' => (array)$flags]);
         $this->logger = $logger;
-        //$this->queue = $queue;
-
         $this->setDatabaseReady();
-
-        $this->logger->info('FeedFetcher initialized');
     }
 
-
-    public function process(): void
+    private function retrieveArticles(): void
     {
-        $qf = new QueueFeed($this->logger, $this->db, $this->flags);
-        $qf->fetch();
+        $feedProviders = [];
+        $p = new ProvidersRetriever($this->logger, $this->db, $this->flags);
 
-        if (!$qf->needsUpdate()) {
-            $this->logger->info('No needs to update');
+        if (!empty($providers = $p->fetch())) {
+            $this->logger->info('Update needed');
+            foreach ($providers as $v) {
+                $this->logger->info('Fetching', ['provider' => $v->getId()]);
+                $feedProviders[] = $v->process();
+            }
+        } else {
+            $this->logger->info('Already up-to-date');
             return;
         }
 
-        // visit feed URLs for each website 
-        $results = $this->fetchFeeds($qf->getProviders());
-        $this->articles = $this->filter($results);
+        foreach ($feedProviders as $v) {
+            $saver = new FeedSaver($this->logger, $this->db, $v);
+            $saver->save();
+            $this->logger->debug('Saved article', ['feedProvider' => $v->getId(), 'count' => $v->countArticles(),]);
+        }
+    }
 
-        // save articles into sqlite3 database
-        $saver = new FeedSaver($this->logger, $this->db, $this->articles);
-        $saver->save();
+    public function process(): void
+    {
+        if (!$this->flags->isUpdateSkipped()) {
+            $this->retrieveArticles();
+        }
 
-        // post webhooks from sqlite3 database
-        $postq = new QueuePost($this->logger, $this->db);
-        $postq->process();
-        $this->postQueue = $postq->fetch();
-        //print_r($result);
+        $planner = new PostingPlanner($this->logger, $this->db);
+        $this->posts = $planner->fetch();
 
+        print_r($this->posts);
         $this->post();
-    }
-
-    private function fetchFeeds(array $providers): array
-    {
-        $results = [];
-        foreach ($providers as [$destId, $url]) {
-            $this->logger->info('Processing', ['destination' => $destId]);
-            $results[$destId] = $this->request($url);
-        }
-        return $results;
-    }
-
-    /** filters unwanted information */
-    private function filter(array $results): array 
-    {
-        $articles = [];
-        foreach ($results as $result) {
-            $filter = new FeedFilter($result);
-            $filter->process();
-            $this->articles[$destId] = $filter->get();
-        }
-        return $articles;
-    }
-
-    private function request(string $url): \FeedIo\Reader\Result
-    {
-        $feedIo = new \FeedIo\FeedIo($this->createClient(), $this->logger);
-        $fetcher = new FeedFetcher($this->logger, $feedIo);
-
-        return $fetcher->fetch($url);
-    }
-
-    private function createClient(): Client
-    {
-        $cf = new ClientFactory($this->logger, [] /*['User-Agent' => 'Mozilla/5.0']*/);
-        $client = $cf->create();
-        return new \App\FeedIo\Adapter\Http\Client($client);
     }
 
 
     private function post(): void
     {
-        $this->logger->debug("Processing queue", [
-            'in queue' => count($this->postQueue)
-        ]);
+        $this->logger->debug("Processing queue", ['in queue' => count($this->posts)]);
 
-        $cf = new ClientFactory($this->logger, [
-            "Content-Type" => "application/json"
-        ]);
-        $client = $cf->create();
-
-        while (true) {
-            [$articleId, $articleTitle, $articleUrl, $webhookId, $webhookTitle, $webhookUrl] = array_pop($this->postQueue);
-            $content = "$articleTitle\n$articleUrl";
+        while ($p = array_pop($this->posts)) {
+            $content = "$p->articleTitle\n$p->articleUrl";
             $builder = new FeedDiscordRPGenerator($content);
+
             $card = $builder->process();
-            $poster = new CardPoster($this->logger, $client, $card, $webhookUrl);
 
-            $poster->post();
-            $this->addHistory($webhookId, $articleId);
+            $cp = new CardPoster(
+                $this->logger,
+                (new ClientFactory($this->logger, [
+                    'Content-Type' => 'application/json'
+                ]))->create(),
+                $card,
+                $p->webhookUrl
+            );
+            $cp->post();
+            $this->addHistory($p);
 
-            $this->logger->debug("Success", ['in queue' => count($this->postQueue)]);
+            $this->logger->debug("Success", ['in queue' => count($this->posts)]);
 
-            if (!empty($this->postQueue)) {
+            if (!empty($this->posts)) {
                 $this->logger->debug(
                     "Waiting for the next request",
                     ['seconds' => \App\Config::INTERVAL_REQUEST_SECONDS,]
                 );
-                sleep(\App\Config::INTERVAL_REQUEST_SECONDS);
+                //sleep(\App\Config::INTERVAL_REQUEST_SECONDS);
             } else {
                 break;
             }
         }
     }
 
-    private function addHistory(int $webhookId, int $articleId)
+    private function addHistory(PostDto $p)
     {
         $stmt = $this->db->prepare(
             "INSERT INTO post_history (post_date, webhook_id, article_id, location_id, source_id)
             VALUES (strftime('%s', 'now'), :wid, :aid, NULL, 2)"
         );
 
-        $stmt->bindValue(':wid', $webhookId, SQLITE3_INTEGER);
-        $stmt->bindValue(':aid', $articleId, SQLITE3_INTEGER);
+        $stmt->bindValue(':wid', $p->webhookId, SQLITE3_INTEGER);
+        $stmt->bindValue(':aid', $p->articleId, SQLITE3_INTEGER);
         $result = $stmt->execute();
 
         return $result;
@@ -150,18 +115,21 @@ class Feed
 
     private function setDatabaseReady(): void
     {
+        $flag = true;
         $databasePath = __DIR__ . '/../../../../sqlite.db';
         if (!empty($this->flags->getDatabasePath()))
             $databasePath = $this->flags->getDatabasePath();
-
         try {
-            if (!file_exists($databasePath))
-                throw new \SQLite3Exception('Database not found');
+            if (!$flag = file_exists($databasePath)) {
+                $this->logger->warning("Database not found", ['path' => $databasePath],);
+            }
         } catch (\SQLite3Exception $e) {
             $this->logger->error($e->getMessage());
             exit;
         }
-
         $this->db = new Database($databasePath);
+        if (!$flag) {
+            $this->logger->info("Created database", ['path' => $databasePath]);
+        }
     }
 }

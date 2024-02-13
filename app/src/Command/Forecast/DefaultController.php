@@ -38,7 +38,7 @@ class DefaultController extends CommandController
             return;
         }
 
-        $forecast = new Forecast($logger, $placeId, $webhookUrl);
+        $forecast = new Forecast($logger, $placeId, $webhookUrl,);
         $forecast->process();
     }
 }

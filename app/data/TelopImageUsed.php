@@ -13,7 +13,7 @@ class TelopImageUsed
     # アプリ版に特有のテロップか
     public bool $app = false;
 
-    function __construct(bool $web, bool $app)
+    public function __construct(bool $web, bool $app)
     {
         $this->web = $web;
         $this->app = $app;

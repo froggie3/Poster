@@ -12,7 +12,7 @@ class FeedDiscordRPGenerator implements DiscordRPGeneratorInterface
 {
     public string $content;
 
-    public function __construct(string $content = "This is the content\n")
+    public function __construct(string $content = "")
     {
         $this->content = $content;
     }

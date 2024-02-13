@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Data\Discord;
 
 // To be an element of the array 'embeds' property in RichPresence
-class Embed extends RichPresence
+class Embed extends \App\Utils\DtoBase
 {
     public string    $title;
     public string    $description;
@@ -17,7 +17,7 @@ class Embed extends RichPresence
     public Author    $author;
     public array     $fields;
 
-    function __construct($properties)
+    public function __construct($properties)
     {
         parent::__construct($properties);
     }

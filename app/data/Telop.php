@@ -22,7 +22,7 @@ class Telop
 
     public TelopImageUsed $type_exists_in;
 
-    function __construct(
+    public function __construct(
         string    $distinctName,
         string    $emojiName,
         string    $telopFilename,
