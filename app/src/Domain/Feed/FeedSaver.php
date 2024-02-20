@@ -22,7 +22,6 @@ class FeedSaver
         $this->logger->info('FeedSaver initialized');
     }
 
-    /** 既存の記事とダウンロードした記事を重複しないようにデータベースに挿入 */
     public function save(): void
     {
         foreach ($this->feedProvider->getArticles() as $article) {
@@ -32,9 +31,11 @@ class FeedSaver
 
     private function insertArticle(Article $article)
     {
+        // もし同じURLを持つ既存の記事があった場合は、なにもしない
         $stmt = $this->db->prepare(
-            "INSERT OR IGNORE INTO articles (title, url, updated_at, created_at, feed_id)
-            VALUES (:title, :url, :updatedAt, strftime('%s', 'now'), :feedId)"
+            "INSERT INTO articles (title, url, feed_id, updated_at)
+            VALUES (:title, :url, :feedId, :updatedAt)
+            ON CONFLICT (url) DO NOTHING"
         );
 
         if ($stmt !== false) {

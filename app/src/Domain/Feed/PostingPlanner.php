@@ -24,21 +24,27 @@ class PostingPlanner
     {
         $stmt = $this->database->prepare(
             "SELECT
-                articles.id    AS articleId,
+                articles.id AS articleId,
                 articles.title AS articleTitle,
-                articles.url   AS articleUrl,
-                webhooks.id    AS webhookId,
+                articles.url AS articleUrl,
+                webhooks.id AS webhookId,
                 webhooks.title AS webhookTitle,
-                webhooks.url   AS webhookUrl
+                webhooks.url AS webhookUrl
             FROM
                 articles
-            INNER JOIN
-                webhooks ON webhooks.source_id = 2
-            LEFT JOIN
-                post_history ON post_history.article_id = articles.id
-                AND post_history.webhook_id = webhooks.id
+                INNER JOIN webhook_map ON webhook_map.webhook_id = webhooks.id
+                AND webhook_map.feed_id = articles.feed_id
+                INNER JOIN feeds ON feeds.id = webhook_map.feed_id
+                AND feeds.id = articles.feed_id
+                INNER JOIN webhooks ON webhooks.id = webhook_map.webhook_id
+                LEFT JOIN post_history ON post_history.article_id = articles.id
+            AND post_history.webhook_id = webhooks.id
             WHERE
-                post_history.article_id IS NULL AND post_history.webhook_id IS NULL"
+                post_history.article_id IS NULL
+                AND post_history.webhook_id IS NULL
+            ORDER BY
+                webhook_map.webhook_id,
+                articles.updated_at;"
         );
 
 

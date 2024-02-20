@@ -82,7 +82,7 @@ class Feed
                 $card,
                 $p->webhookUrl
             );
-            $cp->post();
+            //$cp->post();
             $this->addHistory($p);
 
             $this->logger->debug("Success", ['in queue' => count($this->posts)]);
@@ -102,7 +102,7 @@ class Feed
     private function addHistory(PostDto $p)
     {
         $stmt = $this->db->prepare(
-            "INSERT INTO post_history (post_date, webhook_id, article_id, location_id, source_id)
+            "INSERT INTO post_history (posted_at, webhook_id, article_id, location_id, source_id)
             VALUES (strftime('%s', 'now'), :wid, :aid, NULL, 2)"
         );
 
