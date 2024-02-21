@@ -4,16 +4,16 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
-use App\DB\Database;
+
 use Monolog\Logger;
 
 class FeedSaver
 {
-    private Database $db;
+    private \PDO $db;
     private Logger $logger;
     private Website $feedProvider;
 
-    public function __construct(Logger $logger, Database $db, Website $feedProvider)
+    public function __construct(Logger $logger, \PDO $db, Website $feedProvider)
     {
         $this->db = $db;
         $this->logger = $logger;
@@ -40,16 +40,16 @@ class FeedSaver
 
         if ($stmt !== false) {
             foreach ([
-                [':title', $article->title, SQLITE3_TEXT],
-                [':url', $article->link, SQLITE3_TEXT],
-                [':updatedAt', $article->updatedAt->getTimestamp(), SQLITE3_INTEGER],
-                [':feedId', $this->feedProvider->getId(), SQLITE3_INTEGER],
+                [':title', $article->title, \PDO::PARAM_STR],
+                [':url', $article->link, \PDO::PARAM_STR],
+                [':updatedAt', $article->updatedAt->getTimestamp(), \PDO::PARAM_INT],
+                [':feedId', $this->feedProvider->getId(), \PDO::PARAM_INT],
             ] as $args) {
                 if (!$stmt->bindValue(...$args)) {
                     throw new \Exception("Error while binding values");
                 }
             }
-            $this->logger->info($stmt->getSQL(true));
+            $this->logger->info($stmt->queryString);
 
             if ($stmt->execute() === false) {
                 throw new \Exception("Error while executing query");

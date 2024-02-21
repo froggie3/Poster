@@ -8,7 +8,6 @@ use Monolog\Logger;
 use App\Data\Discord\Card;
 use App\Utils\CardPoster;
 use App\Utils\ClientFactory;
-use GuzzleHttp\Client;
 
 class Forecast
 {

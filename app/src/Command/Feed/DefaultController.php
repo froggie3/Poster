@@ -7,6 +7,7 @@ namespace App\Command\Feed;
 use App\Config;
 use App\Data\CommandFlags\FeedFetcherFlags;
 use App\Domain\Feed\Feed;
+use DatabaseLoader;
 use Minicli\Command\CommandController;
 use Monolog\Handler\ErrorLogHandler;
 use Monolog\Handler\StreamHandler;
@@ -35,12 +36,13 @@ class DefaultController extends CommandController
         if ($this->hasFlag(FLAG_NO_UPDATE_CHECK)) {
             $flags = $flags->setUpdateSkipped($this->hasFlag(FLAG_NO_UPDATE_CHECK));
         }
-
-        $loggingPath = __DIR__ . '/../../../logs/app.log';
+        
         $logger = new Logger("Feed", [
-            new StreamHandler($loggingPath, Config::MONOLOG_LOG_LEVEL), new ErrorLogHandler(),
+            new StreamHandler(CONFIG::LOGGING_PATH, Config::MONOLOG_LOG_LEVEL),
         ]);
-        $feed = new Feed($logger, $flags);
+        
+        $feed = new Feed($logger, $flags, (new \App\Utils\DatabaseLoader($logger, $flags))->create());
+
         $feed->process();
     }
 }

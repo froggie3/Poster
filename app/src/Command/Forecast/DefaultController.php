@@ -16,9 +16,7 @@ class DefaultController extends CommandController
 {
     public function handle(): void
     {
-        $loggingPath = __DIR__ . '/../../../logs/app.log';
-
-        $logHandlers = [new StreamHandler($loggingPath, Config::MONOLOG_LOG_LEVEL), new ErrorLogHandler()];
+        $logHandlers = [new StreamHandler(CONFIG::LOGGING_PATH, Config::MONOLOG_LOG_LEVEL)];
         $logger = new Logger("Forecast", $logHandlers);
 
         try {

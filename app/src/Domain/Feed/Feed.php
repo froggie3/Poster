@@ -5,26 +5,23 @@ declare(strict_types=1);
 namespace App\Domain\Feed;
 
 use App\Data\CommandFlags\FeedFetcherFlags;
-use App\DB\Database;
 use App\Utils\CardPoster;
 use App\Utils\ClientFactory;
 use Monolog\Logger;
 
-
 class Feed
 {
-    private Database $db;
+    private \PDO $db;
     private FeedFetcherFlags $flags;
     private Logger $logger;
     private array $posts = [];
 
-    public function __construct(Logger $logger, FeedFetcherFlags $flags)
+    public function __construct(Logger $logger, FeedFetcherFlags $flags, \PDO $pdo)
     {
         $this->flags = $flags;
         $this->logger = $logger;
         $this->logger->debug("Feed got ready", ['flags' => (array)$flags]);
-        $this->logger = $logger;
-        $this->setDatabaseReady();
+        $this->db = $pdo;
     }
 
     private function retrieveArticles(): void
@@ -34,12 +31,13 @@ class Feed
 
         if (!empty($providers = $p->fetch())) {
             $this->logger->info('Update needed');
+
             foreach ($providers as $v) {
                 $this->logger->info('Fetching', ['provider' => $v->getId()]);
                 $feedProviders[] = $v->process();
             }
         } else {
-            $this->logger->info('Already up-to-date');
+            $this->logger->info("There is no feeds to update. ");
             return;
         }
 
@@ -59,16 +57,16 @@ class Feed
         $planner = new PostingPlanner($this->logger, $this->db);
         $this->posts = $planner->fetch();
 
-        print_r($this->posts);
-        $this->post();
+        if (!empty($this->posts)) {
+            $this->logger->info("Processing queue", ['in queue' => count($this->posts)]);
+            $this->post();
+        }
     }
 
 
     private function post(): void
     {
-        $this->logger->debug("Processing queue", ['in queue' => count($this->posts)]);
-
-        while ($p = array_pop($this->posts)) {
+        while ($p = array_shift($this->posts)) {
             $content = "$p->articleTitle\n$p->articleUrl";
             $builder = new FeedDiscordRPGenerator($content);
 
@@ -85,7 +83,7 @@ class Feed
             //$cp->post();
             $this->addHistory($p);
 
-            $this->logger->debug("Success", ['in queue' => count($this->posts)]);
+            $this->logger->info("Message sent", ['message' => $content, 'in queue' => count($this->posts)]);
 
             if (!empty($this->posts)) {
                 $this->logger->debug(
@@ -99,37 +97,17 @@ class Feed
         }
     }
 
-    private function addHistory(PostDto $p)
+    private function addHistory(PostDto $p): bool
     {
         $stmt = $this->db->prepare(
-            "INSERT INTO post_history (posted_at, webhook_id, article_id, location_id, source_id)
-            VALUES (strftime('%s', 'now'), :wid, :aid, NULL, 2)"
+            "INSERT INTO post_history_feed (posted_at, webhook_id, article_id)
+            VALUES (strftime('%s', 'now'), :wid, :aid)"
         );
 
-        $stmt->bindValue(':wid', $p->webhookId, SQLITE3_INTEGER);
-        $stmt->bindValue(':aid', $p->articleId, SQLITE3_INTEGER);
+        $stmt->bindValue(':wid', $p->webhookId, \PDO::PARAM_INT);
+        $stmt->bindValue(':aid', $p->articleId, \PDO::PARAM_INT);
         $result = $stmt->execute();
 
         return $result;
-    }
-
-    private function setDatabaseReady(): void
-    {
-        $flag = true;
-        $databasePath = __DIR__ . '/../../../../sqlite.db';
-        if (!empty($this->flags->getDatabasePath()))
-            $databasePath = $this->flags->getDatabasePath();
-        try {
-            if (!$flag = file_exists($databasePath)) {
-                $this->logger->warning("Database not found", ['path' => $databasePath],);
-            }
-        } catch (\SQLite3Exception $e) {
-            $this->logger->error($e->getMessage());
-            exit;
-        }
-        $this->db = new Database($databasePath);
-        if (!$flag) {
-            $this->logger->info("Created database", ['path' => $databasePath]);
-        }
     }
 }
