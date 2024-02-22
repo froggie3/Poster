@@ -31,9 +31,8 @@ class FeedSaver
     {
         // もし同じURLを持つ既存の記事があった場合は、なにもしない
         $stmt = $this->db->prepare(
-            "INSERT INTO articles (title, url, feed_id, updated_at)
-            VALUES (:title, :url, :feedId, :updatedAt)
-            ON CONFLICT (url) DO NOTHING"
+            "INSERT OR IGNORE INTO articles (title, url, feed_id, updated_at)
+            VALUES (:title, :url, :feedId, :updatedAt);"
         );
 
         if ($stmt !== false) {

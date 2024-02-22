@@ -51,9 +51,8 @@ class ForecastConsumer
     public function addHistory(ForecastDto $p): bool
     {
         $stmt = $this->db->prepare(
-            "INSERT INTO post_history_forecast (posted_at, webhook_id, location_id)
-            VALUES (strftime('%s', 'now'), :wid, :lid)
-            ON CONFLICT (webhook_id, location_id) DO NOTHING"
+            "INSERT OR IGNORE INTO post_history_forecast (posted_at, webhook_id, location_id)
+            VALUES (strftime('%s', 'now'), :wid, :lid);"
         );
 
         $stmt->bindValue(':wid', $p->webhookId, \PDO::PARAM_INT);

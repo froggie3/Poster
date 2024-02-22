@@ -123,13 +123,8 @@ class ForecastCache
     private function saveCache(int $locId, string $content): bool
     {
         $query =
-            "INSERT INTO
-                cache_forecast (location_id, content)
-            VALUES
-                (:id, :res) ON CONFLICT(location_id) DO
-            UPDATE
-            SET
-                (location_id, content) = (:id, :res);";
+            "INSERT OR REPLACE INTO cache_forecast (location_id, content)
+            VALUES (:id, :res);";
 
         $stmt = $this->db->prepare($query);
 

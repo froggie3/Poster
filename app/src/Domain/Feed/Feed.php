@@ -123,9 +123,8 @@ class Feed
     private function addHistory(PostDto $p): bool
     {
         $stmt = $this->db->prepare(
-            "INSERT INTO post_history_feed (posted_at, webhook_id, article_id)
-            VALUES (strftime('%s', 'now'), :wid, :aid)
-            ON CONFLICT (webhook_id, article_id) DO NOTHING"
+            "INSERT OR IGNORE INTO post_history_feed (posted_at, webhook_id, article_id)
+            VALUES (strftime('%s', 'now'), :wid, :aid);"
         );
 
         $stmt->bindValue(':wid', $p->webhookId, \PDO::PARAM_INT);
