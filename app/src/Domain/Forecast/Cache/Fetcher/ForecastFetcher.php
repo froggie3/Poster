@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Forecast;
+namespace App\Domain\Forecast\Cache\Fetcher;
 
-use App\Config;
-use App\Data\Query\ForecastFetcherQuery;
 use App\Utils\Http;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;

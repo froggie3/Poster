@@ -2,17 +2,18 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Forecast;
+namespace App\Domain\Forecast\Poster;
 
-use Monolog\Logger;
 use App\Data\Discord\DiscordPost;
-use App\Utils\DiscordPostPoster;
+use App\Domain\Forecast\Poster\Processor\ForecastProcessor;
+use App\Domain\Forecast\Poster\Processor\Forecast;
 use App\Utils\ClientFactory;
+use App\Utils\DiscordPostPoster;
+use Monolog\Logger;
 
-
-class PostForecast
+class ForecastPoster
 {
-    private \App\Data\Forecast $resultProcessed;
+    private Forecast $resultProcessed;
     private DiscordPost $rp;
     private Logger $logger;
 

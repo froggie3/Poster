@@ -41,6 +41,7 @@ class PostingPlanner
             WHERE
                 post_history_feed.article_id IS NULL
                 AND post_history_feed.webhook_id IS NULL
+                AND webhook_map_feed.enabled = 1
             ORDER BY
                 webhook_map_feed.webhook_id,
                 articles.updated_at;"

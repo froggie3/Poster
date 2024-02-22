@@ -6,14 +6,16 @@ namespace App\Domain\Forecast;
 
 use Monolog\Logger;
 use App\Data\CommandFlags\Flags;
+use App\Domain\Forecast\Cache\ForecastCache;
+use App\Domain\Forecast\Consumer\ForecastConsumer;
 
-class Forecast
+class Forecaster
 {
     private Logger $logger;
     private \PDO $pdo;
     private Flags $flags;
-    private ForecastUpdater $updater;
-    private ForecastPoster $poster;
+    private ForecastCache $updater;
+    private ForecastConsumer $poster;
 
     public function __construct(Logger $logger, Flags $flags, \PDO $pdo)
     {
@@ -22,13 +24,15 @@ class Forecast
         #print_r($this->flags);
         $this->pdo = $pdo;
 
-        $this->updater = new ForecastUpdater($this->logger, $this->flags, $this->pdo);
-        $this->poster = new ForecastPoster($this->logger, $this->pdo);
+        $this->updater = new ForecastCache($this->logger, $this->flags, $this->pdo);
     }
 
     public function process(): void
     {
-        $this->updater->update();
+        $this->updater->updateCache();
+        $queue = $this->updater->retrieveForecastFromCache();
+
+        $this->poster = new ForecastConsumer($this->logger, $this->pdo, $queue);
         $this->poster->process();
     }
 }

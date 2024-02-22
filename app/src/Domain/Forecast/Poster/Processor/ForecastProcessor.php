@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Forecast;
+namespace App\Domain\Forecast\Poster\Processor;
 
-use App\Data\Forecast;
-use App\Data\Telop;
-use App\Data\TelopImageUsed;
+use App\Domain\Forecast\Poster\Processor\Telop\Telop;
+use App\Domain\Forecast\Poster\Processor\Telop\TelopImageUsed;
 use Monolog\Logger;
 
 class ForecastProcessor

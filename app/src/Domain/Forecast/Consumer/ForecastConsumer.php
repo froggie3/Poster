@@ -2,73 +2,44 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Forecast;
+namespace App\Domain\Forecast\Consumer;
 
-use Monolog\Logger;
 use App\Config;
+use App\Domain\Forecast\Poster\ForecastPoster;
+use App\Domain\Forecast\Cache\ForecastQueue;
+use Monolog\Logger;
 
-class ForecastPoster
+class ForecastConsumer
 {
     private array $queue = [];
     private Logger $logger;
     private \PDO $db;
 
-    public function __construct(Logger $logger, \PDO $db)
+    public function __construct(Logger $logger, \PDO $db, ForecastQueue $queue)
     {
         $this->logger = $logger;
+        $this->queue = (array)$queue;
         $this->db = $db;
-    }
-
-    /**
-     * Retrieve data from cache
-     */
-    public function retrieve(): void
-    {
-        $query =
-            "SELECT
-                webhooks.id as webhookId,
-                locations.id as locationId,
-                locations.place_id as placeId,
-                webhooks.url as webhookUrl,
-                cache_forecast.content as content
-            FROM
-                webhook_map_forecast
-                INNER JOIN locations ON webhook_map_forecast.location_id = locations.id
-                INNER JOIN webhooks ON webhooks.id = webhook_map_forecast.webhook_id
-                INNER JOIN cache_forecast ON cache_forecast.location_id = locations.id;";
-
-        $stmt = $this->db->prepare($query);
-        $stmt->execute();
-
-        foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
-            $this->queue[] = new ForecastDto($row);
-        }
     }
 
     public function process(): void
     {
-        $this->retrieve();
-
         if (empty($this->queue)) {
             $this->logger->info("No forecasts to post");
             return;
         }
 
-        $this->processQueue();
-    }
-
-    private function processQueue(): void
-    {
         while (true) {
-            if (empty($this->queue)) {
+            if (!empty($this->queue)) {
                 sleep(Config::INTERVAL_REQUEST_SECONDS);
+            } else {
                 break;
             }
 
             $p = array_shift($this->queue);
             $this->logger->debug("Processing", ['queue count' => count($this->queue), 'uid' => $p->placeId]);
 
-            $f = new PostForecast($this->logger, $p->placeId, $p->webhookUrl, $p->content);
+            $f = new ForecastPoster($this->logger, $p->placeId, $p->webhookUrl, $p->content);
             $f->process();
 
             $this->addHistory($p);

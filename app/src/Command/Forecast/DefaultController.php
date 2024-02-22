@@ -6,7 +6,7 @@ namespace App\Command\Forecast;
 
 use App\Config;
 use App\Constants;
-use App\Domain\Forecast\Forecast;
+use App\Domain\Forecast\Forecaster;
 use Minicli\Command\CommandController;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -32,7 +32,7 @@ class DefaultController extends CommandController
             $flags = $flags->setForced($this->hasFlag(FLAG_FORCE_UPDATE));
         }
 
-        $forecast = new Forecast(
+        $forecast = new Forecaster(
             $logger,
             $flags,
             (new \App\Utils\DatabaseLoader($logger, $flags))->create()

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Data\Query;
+namespace App\Domain\Forecast\Cache\Fetcher;
 
 class ForecastFetcherQuery
 {

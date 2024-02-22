@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Data;
+namespace App\Domain\Forecast\Poster\Processor;
 
 /**
  * Data class that contains the weather for one day

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Forecast;
+namespace App\Domain\Forecast\Poster;
 
 use App\Data\Discord\Author;
 use App\Data\Discord\DiscordPost;
@@ -10,7 +10,7 @@ use App\Data\Discord\Embed;
 use App\Data\Discord\Field;
 use App\Data\Discord\Footer;
 use App\Data\Discord\Thumbnail;
-use App\Data\Forecast;
+use App\Domain\Forecast\Poster\Processor\Forecast;
 use App\Interface\DiscordRPGeneratorInterface;
 use Monolog\Logger;
 

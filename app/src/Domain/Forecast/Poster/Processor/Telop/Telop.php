@@ -2,9 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Data;
-
-use App\Data\TelopImageUsed;
+namespace App\Domain\Forecast\Poster\Processor\Telop;
 
 class Telop
 {

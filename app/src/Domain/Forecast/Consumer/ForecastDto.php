@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Domain\Forecast;
+namespace App\Domain\Forecast\Consumer;
 
 use App\Utils\DtoBase;
 
