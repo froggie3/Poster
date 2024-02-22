@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Forecast;
 
 use App\Data\Discord\Author;
-use App\Data\Discord\Card;
+use App\Data\Discord\DiscordPost;
 use App\Data\Discord\Embed;
 use App\Data\Discord\Field;
 use App\Data\Discord\Footer;
@@ -34,13 +34,11 @@ class ForecastDiscordRPGenerator extends Forecast implements DiscordRPGeneratorI
         $this->avatarUrl = "https://yokkin.com/d/forecast_resource/avatar.png";
         $this->thumbnailUrl = "https://yokkin.com/d/forecast_resource/{$this->telopFile}";
         $this->locationUrl = "https://www.nhk.or.jp/kishou-saigai/city/weather/{$this->locationUid}";
-
-        $this->logger->debug("Rich presence generation initialized");
     }
 
-    public function process(): Card
+    public function process(): DiscordPost
     {
-        return new Card([
+        return new DiscordPost([
             "content" => sprintf(
                 "天気でーす（データは %s 時点）",
                 (new \DateTimeImmutable($this->forecastDate))->format("H:i")

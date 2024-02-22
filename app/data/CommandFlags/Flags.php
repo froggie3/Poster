@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data\CommandFlags;
 
-class FeedFetcherFlags
+class Flags
 {
     protected bool $isForced;
     protected bool $isUpdateSkipped;

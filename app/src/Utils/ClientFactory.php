@@ -20,7 +20,6 @@ class ClientFactory
     {
         $this->logger = $logger;
         $this->headers = $headers;
-        $this->logger->debug('ClientFactory initialized');
     }
 
     // Reference: https://docs.guzzlephp.org/en/stable/handlers-and-middleware.html#middleware

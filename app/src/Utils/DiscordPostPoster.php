@@ -4,25 +4,24 @@ declare(strict_types=1);
 
 namespace App\Utils;
 
-use App\Data\Discord\Card;
+use App\Data\Discord\DiscordPost;
 use App\Utils\Http;
 use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 use Monolog\Logger;
 
-class CardPoster
+class DiscordPostPoster
 {
     private Logger $logger;
-    private Card $card;
+    private DiscordPost $card;
     private Client $client;
     private string $url;
 
-    public function __construct(Logger $logger, Client $client, Card $card, string $url)
+    public function __construct(Logger $logger, Client $client, DiscordPost $card, string $url)
     {
         $this->logger = $logger;
         $this->card = $card;
         $this->url = $url;
-        $this->logger->debug('Poster initialized');
 
         $this->client = $client;
     }

@@ -4,7 +4,8 @@
         "debril/feed-io": "^6.0",
         "symfony/http-client": "^7.0",
         "minicli/minicli": "^4.2",
-        "guzzlehttp/guzzle": "^7.8"
+        "guzzlehttp/guzzle": "^7.8",
+        "minicli/command-help": "^1.0"
     },
     "autoload": {
         "psr-4": {

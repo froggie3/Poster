@@ -23,7 +23,6 @@ class ForecastFetcher
         $this->logger = $logger;
         $this->client = $client;
         $this->placeId = $placeId;
-        $this->logger->debug('Fetching process initialized');
     }
 
     public function fetch(): string

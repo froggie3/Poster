@@ -8,9 +8,12 @@ use App\Config;
 use App\Constants;
 use App\Domain\Forecast\Forecast;
 use Minicli\Command\CommandController;
-use Monolog\Handler\ErrorLogHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
+use App\Data\CommandFlags\Flags;
+
+const FLAG_FORCE_UPDATE = 'force-update';
+const PARAM_DATABASE_PATH = 'database-path';
 
 class DefaultController extends CommandController
 {
@@ -18,25 +21,23 @@ class DefaultController extends CommandController
     {
         $logHandlers = [new StreamHandler(CONFIG::LOGGING_PATH, Config::MONOLOG_LOG_LEVEL)];
         $logger = new Logger("Forecast", $logHandlers);
+        $flags = new Flags();
 
-        try {
-            if (!$placeId = getenv(Constants::PLACE_ID_KEY))
-                throw new \Exception("Environment variable '" . Constants::PLACE_ID_KEY . "' is not set");
-
-            if (gettype($placeId) !== 'string')
-                throw new \Exception("Environment variable '" . Constants::PLACE_ID_KEY . "' must be string");
-
-            if (!$webhookUrl = getenv(Constants::WEBHOOK_URL_KEY))
-                throw new \Exception("Environment variable '" . Constants::WEBHOOK_URL_KEY . "' is not set");
-
-            if (gettype($webhookUrl) !== 'string')
-                throw new \Exception("Environment variable '" . Constants::WEBHOOK_URL_KEY . "' must be string");
-        } catch (\Exception $e) {
-            $logger->error($e->getMessage());
-            return;
+        if ($this->hasParam(PARAM_DATABASE_PATH)) {
+            $databasePath = $this->getParam(PARAM_DATABASE_PATH);
+            $flags = $flags->setDatabasePath($databasePath);
         }
 
-        $forecast = new Forecast($logger, $placeId, $webhookUrl,);
+        if ($this->hasFlag(FLAG_FORCE_UPDATE)) {
+            $flags = $flags->setForced($this->hasFlag(FLAG_FORCE_UPDATE));
+        }
+
+        $forecast = new Forecast(
+            $logger,
+            $flags,
+            (new \App\Utils\DatabaseLoader($logger, $flags))->create()
+        );
+
         $forecast->process();
     }
 }

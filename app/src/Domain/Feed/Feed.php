@@ -4,48 +4,24 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed;
 
-use App\Data\CommandFlags\FeedFetcherFlags;
-use App\Utils\CardPoster;
+use App\Data\CommandFlags\Flags;
+use App\Utils\DiscordPostPoster;
 use App\Utils\ClientFactory;
 use Monolog\Logger;
 
 class Feed
 {
     private \PDO $db;
-    private FeedFetcherFlags $flags;
+    private Flags $flags;
     private Logger $logger;
     private array $posts = [];
 
-    public function __construct(Logger $logger, FeedFetcherFlags $flags, \PDO $pdo)
+    public function __construct(Logger $logger, Flags $flags, \PDO $pdo)
     {
-        $this->flags = $flags;
         $this->logger = $logger;
         $this->logger->debug("Feed got ready", ['flags' => (array)$flags]);
+        $this->flags = $flags;
         $this->db = $pdo;
-    }
-
-    private function retrieveArticles(): void
-    {
-        $feedProviders = [];
-        $p = new ProvidersRetriever($this->logger, $this->db, $this->flags);
-
-        if (!empty($providers = $p->fetch())) {
-            $this->logger->info('Update needed');
-
-            foreach ($providers as $v) {
-                $this->logger->info('Fetching', ['provider' => $v->getId()]);
-                $feedProviders[] = $v->process();
-            }
-        } else {
-            $this->logger->info("There is no feeds to update. ");
-            return;
-        }
-
-        foreach ($feedProviders as $v) {
-            $saver = new FeedSaver($this->logger, $this->db, $v);
-            $saver->save();
-            $this->logger->debug('Saved article', ['feedProvider' => $v->getId(), 'count' => $v->countArticles(),]);
-        }
     }
 
     public function process(): void
@@ -63,6 +39,52 @@ class Feed
         }
     }
 
+    private function retrieveArticles(): void
+    {
+        $feedProviders = [];
+        $p = new ProvidersRetriever($this->logger, $this->db, $this->flags);
+
+        if (!empty($providers = $p->fetch())) {
+            $this->logger->info('Update needed');
+
+            foreach ($providers as $v) {
+                $this->logger->debug('Fetching', ['provider' => $v->getId()]);
+                $feedProviders[] = $v->process();
+            }
+        } else {
+            $this->logger->info("There is no feeds to update. ");
+            return;
+        }
+
+        foreach ($feedProviders as $v) {
+            $saver = new FeedSaver($this->logger, $this->db, $v);
+            $saver->save();
+
+            $updatedResult = $this->updateFeeds($v->getId());
+
+            if ($updatedResult) {
+                $this->logger->debug('Updated the last updated time', [
+                    'feedProvider' => $v->getId(),
+                    'count' => $v->countArticles(),
+                ]);
+            }
+
+            $this->logger->debug('Saved article', [
+                'feedProvider' => $v->getId(),
+                'count' => $v->countArticles(),
+            ]);
+        }
+    }
+
+    /** Updates the table 'feeds' when updated */
+    private function updateFeeds(int $feedId)
+    {
+        $query = "UPDATE feeds SET updated_at = strftime('%s', 'now') WHERE id = :feedId";
+        $stmt = $this->db->prepare($query);
+        $stmt->bindValue('feedId', $feedId, \PDO::PARAM_INT);
+
+        return $stmt->execute();
+    }
 
     private function post(): void
     {
@@ -72,7 +94,7 @@ class Feed
 
             $card = $builder->process();
 
-            $cp = new CardPoster(
+            $cp = new DiscordPostPoster(
                 $this->logger,
                 (new ClientFactory($this->logger, [
                     'Content-Type' => 'application/json'
@@ -80,7 +102,8 @@ class Feed
                 $card,
                 $p->webhookUrl
             );
-            //$cp->post();
+
+            $cp->post();
             $this->addHistory($p);
 
             $this->logger->info("Message sent", ['message' => $content, 'in queue' => count($this->posts)]);
@@ -90,7 +113,7 @@ class Feed
                     "Waiting for the next request",
                     ['seconds' => \App\Config::INTERVAL_REQUEST_SECONDS,]
                 );
-                //sleep(\App\Config::INTERVAL_REQUEST_SECONDS);
+                sleep(\App\Config::INTERVAL_REQUEST_SECONDS);
             } else {
                 break;
             }
@@ -101,13 +124,14 @@ class Feed
     {
         $stmt = $this->db->prepare(
             "INSERT INTO post_history_feed (posted_at, webhook_id, article_id)
-            VALUES (strftime('%s', 'now'), :wid, :aid)"
+            VALUES (strftime('%s', 'now'), :wid, :aid)
+            ON CONFLICT (webhook_id, article_id) DO NOTHING"
         );
 
         $stmt->bindValue(':wid', $p->webhookId, \PDO::PARAM_INT);
         $stmt->bindValue(':aid', $p->articleId, \PDO::PARAM_INT);
-        $result = $stmt->execute();
 
+        $result = $stmt->execute();
         return $result;
     }
 }

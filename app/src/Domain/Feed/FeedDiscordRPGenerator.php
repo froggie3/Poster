@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Feed;
 
 use App\Interface\DiscordRPGeneratorInterface;
-use App\Data\Discord\Card;
+use App\Data\Discord\DiscordPost;
 
 
 class FeedDiscordRPGenerator implements DiscordRPGeneratorInterface
@@ -17,8 +17,8 @@ class FeedDiscordRPGenerator implements DiscordRPGeneratorInterface
         $this->content = $content;
     }
 
-    public function process(): Card
+    public function process(): DiscordPost
     {
-        return new Card(["content" => $this->content]);
+        return new DiscordPost(["content" => $this->content]);
     }
 }

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Interface;
 
-use App\Data\Discord\Card;
+use App\Data\Discord\DiscordPost;
 
 interface DiscordRPGeneratorInterface
 {
-    public function process(): Card;
+    public function process(): DiscordPost;
 }

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Feed;
 
 use App\Config;
-use App\Data\CommandFlags\FeedFetcherFlags;
+use App\Data\CommandFlags\Flags;
 
 use Monolog\Logger;
 use App\Utils\ClientFactory;
@@ -14,11 +14,11 @@ class ProvidersRetriever
 {
     private Logger $logger;
     private \PDO $db;
-    private FeedFetcherFlags $flags;
+    private Flags $flags;
 
     private array $queue = [];
 
-    public function __construct(Logger $logger, \PDO $db, FeedFetcherFlags $flags)
+    public function __construct(Logger $logger, \PDO $db, Flags $flags)
     {
         $this->logger = $logger;
         $this->flags = $flags;
@@ -36,18 +36,8 @@ class ProvidersRetriever
 
             $stmt = $this->db->prepare(
                 $this->flags->isForced()
-                    ?
-                    "SELECT
-                        id, url
-                    FROM
-                        feeds"
-                    :
-                    "SELECT
-                        id, url
-                    FROM
-                        feeds
-                    WHERE
-                        strftime('%s', 'now') - updated_at >= :cache"
+                    ? "SELECT id, url FROM feeds"
+                    : "SELECT id, url FROM feeds WHERE strftime('%s', 'now') - updated_at >= :cache"
             );
 
             if ($stmt) {

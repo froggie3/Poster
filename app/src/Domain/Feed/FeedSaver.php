@@ -18,8 +18,6 @@ class FeedSaver
         $this->db = $db;
         $this->logger = $logger;
         $this->feedProvider = $feedProvider;
-
-        $this->logger->info('FeedSaver initialized');
     }
 
     public function save(): void
@@ -49,7 +47,7 @@ class FeedSaver
                     throw new \Exception("Error while binding values");
                 }
             }
-            $this->logger->info($stmt->queryString);
+            // $this->logger->info($stmt->queryString);
 
             if ($stmt->execute() === false) {
                 throw new \Exception("Error while executing query");

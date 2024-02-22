@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Data\Discord;
 
-class Card extends \App\Utils\DtoBase
+class DiscordPost extends \App\Utils\DtoBase
 {
     public string $content;
     public string $username;

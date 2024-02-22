@@ -37,7 +37,6 @@ class Website
     private function request(): void
     {
         try {
-            $this->logger->info("Sending request", ['url' => $this->url]);
             $result = $this->feedIo->read($this->url);
         } catch (\FeedIo\FeedIoException $e) {
             $this->logger->error($e->getMessage());
