@@ -10,11 +10,8 @@ class Constants
     const WEBHOOK_URL_KEY = 'WEBHOOK_URL';
     const PLACE_ID_KEY = 'PLACE_ID';
 
-    // ログ用のモジュール名の設定
-    const MODULE_FEED_FETCHER = 'FeedFetcher';
-    const MODULE_FORECAST_FETCHER = "ForecastFetcher";
-    const MODULE_FORECAST_POSTER = "DiscordPostPoster";
-    const MODULE_RP_GENERATOR = "FeedDiscordRPGenerator";
-    const MODULE_FORECAST_PROCESSOR = "ForecastProcessor";
-    const MODULE_HTTP = "Http";
+    // command-line flags and parameters
+    const FLAG_FORCE_UPDATE = 'force-update';
+    const FLAG_NO_UPDATE_CHECK = 'no-update-check';
+    const PARAM_DATABASE_PATH = 'database-path';
 }

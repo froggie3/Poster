@@ -2,10 +2,8 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Feed;
+namespace App\Domain\Feed\Retriever\Website;
 
-use FeedIo\Feed\Item;
-use FeedIo\FeedInterface;
 use Monolog\Logger;
 use FeedIo\FeedIo;
 
@@ -17,8 +15,12 @@ class Website
     private int $id;
     private string $url;
 
-    public function __construct(FeedIo $feedIo, int $id, string $url, Logger $logger = null)
-    {
+    public function __construct(
+        FeedIo $feedIo,
+        int $id,
+        string $url,
+        Logger $logger = null,
+    ) {
         $this->feedIo = $feedIo;
         $this->id = $id;
         $this->url = $url;
@@ -44,7 +46,11 @@ class Website
         }
 
         foreach ($result->getFeed() as $item) {
-            $this->articles[] = new Article($item->getTitle(), $item->getLink(), $item->getLastModified());
+            $this->articles[] = new Article(
+                $item->getTitle(),
+                $item->getLink(),
+                $item->getLastModified()
+            );
         }
     }
 

@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Feed;
+namespace App\Domain\Feed\Consumer;
 
 use App\Interface\DiscordRPGeneratorInterface;
 use App\Data\Discord\DiscordPost;
-
 
 class FeedDiscordRPGenerator implements DiscordRPGeneratorInterface
 {

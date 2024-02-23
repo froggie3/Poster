@@ -2,29 +2,30 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Feed;
+namespace App\Domain\Feed\Updater\Retriever;
 
 use App\Config;
 use App\Data\CommandFlags\Flags;
-
-use Monolog\Logger;
+use App\Domain\Feed\Updater\Retriever\Website\Website;
 use App\Utils\ClientFactory;
+use Monolog\Logger;
 
 class ProvidersRetriever
 {
     private Logger $logger;
     private \PDO $db;
     private Flags $flags;
-
     private array $queue = [];
 
-    public function __construct(Logger $logger, \PDO $db, Flags $flags)
-    {
+    public function __construct(
+        Logger $logger,
+        \PDO $db,
+        Flags $flags
+    ) {
         $this->logger = $logger;
         $this->flags = $flags;
         $this->db = $db;
     }
-
 
     /** 訪問するべきフィード発信元を追加 */
     public function fetch(): array
@@ -55,7 +56,11 @@ class ProvidersRetriever
                 $stmt->execute();
 
                 foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
-                    $this->queue[] = new Website($feedIo, ...$row, logger: $this->logger,);
+                    $this->queue[] = new Website(
+                        $feedIo,
+                        ...$row,
+                        logger: $this->logger,
+                    );
                 }
                 // print_r($this->queue);
                 // exit;

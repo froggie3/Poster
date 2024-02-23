@@ -2,7 +2,7 @@
 
 This tool allows you to aggregate some of information that you would likely to utilize in your real life, such as weather forecast, RSS feed, and etc.
 
-The application aggregates the RSS feed you would like to subscribe, or the weather forecast of any locations in Japan which are going to be retrieved from the backend API of NHK NEWS Web. You can expect the tools to post such information on Discord.
+The application collects the articles from RSS feed you would like to subscribe, or the weather forecast of any locations in Japan which are going to be retrieved from the backend API of NHK NEWS Web. You can expect the tools to post such information on Discord.
 
 The settings are saved by each webhook registrations that you can configure.
 

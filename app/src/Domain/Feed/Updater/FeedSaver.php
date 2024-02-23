@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Feed;
+namespace App\Domain\Feed\Updater;
 
-
+use App\Domain\Feed\Updater\Retriever\Website\Website;
+use App\Domain\Feed\Updater\Retriever\Website\Article;
 use Monolog\Logger;
 
 class FeedSaver
@@ -13,8 +14,11 @@ class FeedSaver
     private Logger $logger;
     private Website $feedProvider;
 
-    public function __construct(Logger $logger, \PDO $db, Website $feedProvider)
-    {
+    public function __construct(
+        Logger $logger,
+        \PDO $db,
+        Website $feedProvider
+    ) {
         $this->db = $db;
         $this->logger = $logger;
         $this->feedProvider = $feedProvider;
