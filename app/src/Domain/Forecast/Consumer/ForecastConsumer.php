@@ -6,7 +6,7 @@ namespace App\Domain\Forecast\Consumer;
 
 use App\Config;
 use App\Domain\Forecast\Poster\ForecastPoster;
-use App\Domain\Forecast\Cache\ForecastQueue;
+use App\Domain\Forecast\Cache\ForecastArray;
 use Monolog\Logger;
 
 class ForecastConsumer
@@ -15,7 +15,7 @@ class ForecastConsumer
     private Logger $logger;
     private \PDO $db;
 
-    public function __construct(Logger $logger, \PDO $db, ForecastQueue $queue)
+    public function __construct(Logger $logger, \PDO $db, ForecastArray $queue)
     {
         $this->logger = $logger;
         $this->queue = (array)$queue;

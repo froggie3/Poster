@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Feed\Updater\Retriever\Website;
+namespace App\Domain\Feed\Updater\Website;
 
 class Article
 {

@@ -2,11 +2,11 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Feed\Planner;
+namespace App\Domain\Feed\Cache;
 
 use Monolog\Logger;
 
-class PostingPlanner
+class PostCache
 {
     private Logger $logger;
     private \PDO $pdo;
@@ -19,7 +19,7 @@ class PostingPlanner
     }
 
     /** これから投稿する記事のURLと投稿先とのペアが post_history_feed テーブルの中になければ取得 */
-    public function fetch(): array
+    public function fetch(): PostsArray 
     {
         $stmt = $this->pdo->prepare(
             "SELECT
@@ -53,7 +53,7 @@ class PostingPlanner
             foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
                 $this->queue[] = new PostDto($row);
             }
-            return $this->queue;
+            return new PostsArray($this->queue);
         } else {
             throw new \Exception('An error occurred while building query');
         }

@@ -4,79 +4,67 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed\Updater;
 
+use App\Config;
 use App\Data\CommandFlags\Flags;
-use App\Domain\Feed\Updater\Retriever\ProvidersRetriever;
+use App\Domain\Feed\Updater\Website\Website;
+use App\Utils\ClientFactory;
 use Monolog\Logger;
+
 
 class FeedUpdater
 {
     private \PDO $db;
     private Flags $flags;
     private Logger $logger;
-    private WebsiteArray $feedProviders;
+    private ProvidersArray $providers;
 
     public function __construct(Logger $logger, Flags $flags, \PDO $pdo)
     {
         $this->logger = $logger;
-        $this->logger->debug("Feed got ready", ['flags' => (array)$flags]);
         $this->flags = $flags;
         $this->db = $pdo;
-        $this->feedProviders = new WebsiteArray();
+        $this->providers = new ProvidersArray($this->logger, $this->db,);
     }
 
-    public function retrieveArticles(): void
+    public function process(): void
     {
-        $p = new ProvidersRetriever(
-            $this->logger,
-            $this->db,
-            $this->flags
-        );
-
-        if (!empty($providers = $p->fetch())) {
-            $this->logger->info('Update needed');
-
-            foreach ($providers as $v) {
-                $this->logger->debug('Fetching', ['provider' => $v->getId()]);
-                $feedProviders[] = $v->process();
-            }
-            $this->updateFeeds();
-        } else {
-            $this->logger->info("There is no feeds to update.");
-            return;
-        }
+        $this->extractProviders()->retrieveArticles()->saveArticles();
     }
 
-    private function updateFeeds(): void
+    /**
+     * Visit and collect websites' feeds
+     */
+    private function extractProviders(): ProvidersArray
     {
-        foreach ($this->feedProviders as $v) {
-            $saver = new FeedSaver($this->logger, $this->db, $v);
-            $saver->save();
-
-            $updatedResult = $this->updateFeedsTable($v->getId());
-
-            if ($updatedResult) {
-                $this->logger->debug('Updated the last updated time', [
-                    'feedProvider' => $v->getId(),
-                    'count' => $v->countArticles(),
-                ]);
+        try {
+            if ($this->flags->isForced()) {
+                $this->logger->alert("'--force-update' is set");
             }
 
-            $this->logger->debug('Saved article', [
-                'feedProvider' => $v->getId(),
-                'count' => $v->countArticles(),
-            ]);
+            $stmt = $this->db->prepare(
+                $this->flags->isForced()
+                    ? "SELECT id, url FROM feeds"
+                    : "SELECT id, url FROM feeds WHERE strftime('%s', 'now') - updated_at >= :cache"
+            );
+
+            if ($stmt) {
+                if (!$this->flags->isForced()) {
+                    $stmt->bindValue(':cache', Config::FEED_CACHE_LIFETIME, \PDO::PARAM_INT);
+                }
+
+                $feedIo = new \FeedIo\FeedIo(new \App\FeedIo\Adapter\Http\Client((new ClientFactory($this->logger))->create()), $this->logger);
+                $stmt->execute();
+
+                foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
+                    $this->providers[] = new Website($feedIo, ...$row, logger: $this->logger,);
+                }
+            } else {
+                throw new \PDOException("Failure on preparing statements");
+            }
+        } catch (\PDOException $e) {
+            $this->logger->error($e->getMessage());
         }
-    }
 
-    /** Updates the table 'feeds' when updated */
-    private function updateFeedsTable(int $feedId)
-    {
-        $query =
-            "UPDATE feeds SET updated_at = strftime('%s', 'now')
-            WHERE id = :feedId";
-        $stmt = $this->db->prepare($query);
-        $stmt->bindValue('feedId', $feedId, \PDO::PARAM_INT);
-
-        return $stmt->execute();
+        return $this->providers;
     }
 }

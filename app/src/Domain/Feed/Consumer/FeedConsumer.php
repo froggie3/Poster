@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Feed\Consumer;
 
-use App\Domain\Feed\PostsArray;
-use App\Domain\Feed\Planner\PostDto;
+use App\Domain\Feed\Cache\PostsArray;
+use App\Domain\Feed\Cache\PostDto;
 use App\Utils\DiscordPostPoster;
 use App\Utils\ClientFactory;
 use Monolog\Logger;

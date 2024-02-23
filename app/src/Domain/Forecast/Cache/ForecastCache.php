@@ -15,14 +15,14 @@ class ForecastCache
 {
     private Logger $logger;
     private Flags $flags;
-    private ForecastQueue $queue;
+    private ForecastArray $queue;
     private \PDO $db;
 
     public function __construct(Logger $logger, Flags $flags, \PDO $db)
     {
         $this->logger = $logger;
         $this->flags = $flags;
-        $this->queue = new ForecastQueue();
+        $this->queue = new ForecastArray();
         $this->db = $db;
     }
 
@@ -78,7 +78,7 @@ class ForecastCache
     /**
      * Retrieve data from cache
      */
-    public function retrieveForecastFromCache(): ForecastQueue
+    public function retrieveForecastFromCache(): ForecastArray
     {
         $query =
             "SELECT

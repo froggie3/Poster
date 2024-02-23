@@ -8,7 +8,9 @@ use App\Config;
 use Monolog\Logger;
 use App\Data\CommandFlags\Flags;
 
-// apply the content of command-line flags, and returns PDO instance
+/**
+ * A class that applies the content of command-line flags, and returns PDO instance.
+ */
 class DatabaseLoader
 {
     private Logger $logger;

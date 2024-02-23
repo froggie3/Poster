@@ -2,11 +2,14 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Feed\Retriever\Website;
+namespace App\Domain\Feed\Updater\Website;
 
 use Monolog\Logger;
 use FeedIo\FeedIo;
 
+/**
+ * Represents a website, including its id, url, articles, and etc.
+ */
 class Website
 {
     private FeedIo $feedIo;
@@ -30,6 +33,9 @@ class Website
         }
     }
 
+    /**
+     * Letting itself visit the website to collect the articles
+     */
     public function process(): self
     {
         $this->request();

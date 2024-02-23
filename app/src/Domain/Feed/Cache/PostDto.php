@@ -1,6 +1,6 @@
 <?php
 
-namespace App\Domain\Feed\Planner;
+namespace App\Domain\Feed\Cache;
 
 use App\Utils\DtoBase;
 
