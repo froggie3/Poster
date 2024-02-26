@@ -6,4 +6,8 @@ namespace App\Domain\Forecast\Cache;
 
 class ForecastArray extends \ArrayObject
 {
+    public function needsUpdate(): bool
+    {
+        return !empty($this);
+    }
 }

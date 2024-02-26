@@ -8,6 +8,7 @@ use App\Config;
 use App\Constants;
 use App\Data\CommandFlags\Flags;
 use App\Domain\Forecast\Forecaster;
+use App\Utils\ClientFactory;
 use Minicli\Command\CommandController;
 use Monolog\Handler\StreamHandler;
 use Monolog\Logger;
@@ -33,7 +34,8 @@ class DefaultController extends CommandController
         $forecast = new Forecaster(
             $logger,
             $flags,
-            (new \App\Utils\DatabaseLoader($logger, $flags))->create()
+            (new \App\Utils\DatabaseLoader($logger, $flags))->create(),
+            (new ClientFactory($logger, ['Content-Type' => 'application/json']))->create(),
         );
 
         $forecast->process();

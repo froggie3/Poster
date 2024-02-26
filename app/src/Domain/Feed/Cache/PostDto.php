@@ -13,7 +13,7 @@ class PostDto extends DtoBase
     public string $webhookTitle;
     public string $webhookUrl;
 
-    public function __construct($properties)
+    public function __construct(array $properties)
     {
         parent::__construct($properties);
     }

@@ -15,4 +15,9 @@ class DiscordPost extends \App\Utils\DtoBase
     {
         parent::__construct($properties);
     }
+
+    public function toJson(): string
+    {
+        return json_encode($this);
+    }
 }

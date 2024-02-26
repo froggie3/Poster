@@ -10,6 +10,9 @@ use GuzzleHttp\Client;
 use GuzzleHttp\Psr7\Request;
 use Monolog\Logger;
 
+/**
+ * A class that supports sending Webhook to Discord.
+ */
 class DiscordPostPoster
 {
     private Logger $logger;
@@ -17,17 +20,19 @@ class DiscordPostPoster
     private Client $client;
     private string $url;
 
-    public function __construct(Logger $logger, Client $client, DiscordPost $card, string $url)
+    public function __construct(Logger $logger, Client $client)
     {
         $this->logger = $logger;
-        $this->card = $card;
-        $this->url = $url;
-
         $this->client = $client;
     }
 
-    public function post(): void
+    /**
+     * Handles message objects, and sends request to the URL.
+     */
+    public function post(DiscordPost $card, string $url): void
     {
+        $this->url = $url;
+        $this->card = $card;
         $res = $this->fireWebhook($this->url, json_encode($this->card));
         if ($res !== false) {
             $this->logger->debug("Message successfully sent", ['response' => $res]);

@@ -9,25 +9,42 @@ use App\Data\CommandFlags\Flags;
 use App\Domain\Forecast\Cache\Fetcher\ForecastFetcher;
 use App\Domain\Forecast\Consumer\ForecastDto;
 use App\Utils\ClientFactory;
+use GuzzleHttp\Client;
 use Monolog\Logger;
 
+/**
+ * A class responsible for retrieving the latest whether forecast 
+ * of specific location with the ID previously registered 
+ * into the database.
+ * If the lifetime of the cache is longer than 
+ * what is configured in `Config.php`, this app tries to get
+ * the latest information from the API and keep the response
+ * into the database as a cache.
+ * 
+ * The cache renewal occurs based on Cache-Aside pattern.  
+ */
 class ForecastCache
 {
     private Logger $logger;
     private Flags $flags;
     private ForecastArray $queue;
+    private Client $client;
     private \PDO $db;
+    private ForecastFetcher $fetcher;
 
-    public function __construct(Logger $logger, Flags $flags, \PDO $db)
+    public function __construct(Logger $logger, Flags $flags, \PDO $db, Client $client, ForecastFetcher $fetcher)
     {
         $this->logger = $logger;
         $this->flags = $flags;
         $this->queue = new ForecastArray();
         $this->db = $db;
+        $this->client = $client;
+        $this->fetcher = $fetcher;
     }
 
-    /** 
-     * Get data in JSON from NHK NEWS API, and save the response in JSON as cache on success
+    /**
+     * If the lifetime of the cache is longer than 
+     * what is configured in `Config.php`, update the cache. 
      */
     public function updateCache(): void
     {
@@ -54,10 +71,10 @@ class ForecastCache
             $this->logger->info("Update needed");
 
             foreach ($queue as ["id" => $locId, "place_id" => $placeId]) {
-                $fetcher = new ForecastFetcher($this->logger, (new ClientFactory($this->logger,))->create(), $placeId);
-
                 try {
-                    $res = $fetcher->fetch();
+                    $res = $this->fetcher->fetch($placeId);
+
+                    // on success
                     $this->saveCache($locId, $res);
 
                     $updatedResult = $this->updateLocations($locId);
@@ -76,7 +93,7 @@ class ForecastCache
     }
 
     /**
-     * Retrieve data from cache
+     * Retrieves the cache from Database and add them to the queue.
      */
     public function retrieveForecastFromCache(): ForecastArray
     {
@@ -101,11 +118,14 @@ class ForecastCache
         foreach ($stmt->fetchAll(\PDO::FETCH_ASSOC) as $row) {
             $this->queue[] = new ForecastDto($row);
         }
+
         return $this->queue;
     }
 
-    /** Updates the table 'locations' when updated */
-    private function updateLocations(int $locId)
+    /**
+     * Updates the last updated time cache of $locationId.
+     */
+    private function updateLocations(int $locId): bool
     {
         $query =
             "UPDATE
@@ -120,6 +140,9 @@ class ForecastCache
         return $stmt->execute();
     }
 
+    /**
+     * Caches the JSON response into the database. 
+     */
     private function saveCache(int $locId, string $content): bool
     {
         $query =

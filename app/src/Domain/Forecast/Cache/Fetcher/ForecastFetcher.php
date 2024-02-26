@@ -16,15 +16,18 @@ class ForecastFetcher
     private Client $client;
     private string $placeId;
 
-    public function __construct(Logger $logger, Client $client,string $placeId)
+    public function __construct(Logger $logger, Client $client)
     {
         $this->logger = $logger;
         $this->client = $client;
-        $this->placeId = $placeId;
     }
 
-    public function fetch(): string
+    /** 
+     * Get and returns the data in JSON from NHK NEWS API.
+     */
+    public function fetch(string $placeId): string
     {
+        $this->placeId = $placeId;
         $query = (new ForecastFetcherQuery($this->placeId))->buildQuery();
         $this->logger->debug('Query built', ['query' => $query]);
         $request = new Request('GET', "https://www.nhk.or.jp/weather-data/v1/lv3/wx/?$query");
