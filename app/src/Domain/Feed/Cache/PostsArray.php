@@ -6,4 +6,8 @@ namespace App\Domain\Feed\Cache;
 
 class PostsArray extends \ArrayObject
 {
+    public function needsUpdate()
+    {
+        return !empty($this);
+    }
 }

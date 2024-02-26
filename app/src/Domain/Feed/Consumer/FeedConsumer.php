@@ -40,7 +40,7 @@ class FeedConsumer
         foreach ($this->queue as $object) {
             assert($object instanceof PostDto);
             $this->queueCount--;
-            $this->inner_process($object);
+            $this->innerProcess($object);
 
             $this->addHistory($object);
 
@@ -78,7 +78,7 @@ class FeedConsumer
         return $result;
     }
 
-    protected function inner_process(object $object)
+    protected function innerProcess(object $object)
     {
         assert($object instanceof PostDto);
         $content = "{$object->articleTitle}\n{$object->articleUrl}";

@@ -55,7 +55,6 @@ class Forecaster
         $this->poster = new ForecastConsumer(
             $this->logger,
             $this->pdo,
-            new ForecastProcessor($this->logger),
             new DiscordPostPoster($this->logger, $this->client),
             (array)$queue,
         );

@@ -52,7 +52,7 @@ class Feed
         $this->cache = new PostCache($this->logger, $this->db);
         $queue = $this->cache->fetch();
 
-        if (empty($queue)) {
+        if (!$queue->needsUpdate()) {
             $this->logger->info("No forecasts to post");
             return;
         }

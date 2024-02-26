@@ -16,16 +16,14 @@ class ForecastConsumer
 {
     private \PDO $db;
     private DiscordPostPoster $poster;
-    private ForecastProcessor $processor;
     private Logger $logger;
     private array $queue;
     private int $queueCount;
 
-    public function __construct(Logger $logger, \PDO $db, ForecastProcessor $processor, DiscordPostPoster $poster, array $queue,)
+    public function __construct(Logger $logger, \PDO $db, DiscordPostPoster $poster, array $queue,)
     {
         $this->db = $db;
         $this->logger = $logger;
-        $this->processor = $processor;
         $this->poster = $poster;
         $this->queue = $queue;
         $this->queueCount = count($this->queue);
@@ -41,7 +39,7 @@ class ForecastConsumer
         foreach ($this->queue as $object) {
             assert($object instanceof ForecastDto);
             $this->queueCount--;
-            $this->inner_process($object);
+            $this->innerProcess($object);
 
             $this->addHistory($object);
 
@@ -85,10 +83,10 @@ class ForecastConsumer
     /**
      * Procedures executed while processing every queue element 
      */
-    protected function inner_process(ForecastDto $object)
+    protected function innerProcess(ForecastDto $object)
     {
         assert($object instanceof ForecastDto);
-        $discordPost = $this->processor->process($object->process());
+        $discordPost = $object->process()->toDiscordPost();
         $this->logger->debug("Post generation finished");
 
         $this->poster->post($discordPost, $object->webhookUrl);

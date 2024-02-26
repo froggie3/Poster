@@ -4,9 +4,9 @@ namespace App\Domain\Forecast\Consumer;
 
 use App\Utils\DtoBase;
 
-use App\Domain\Forecast\Poster\Processor\Telop\Telop;
-use App\Domain\Forecast\Poster\Processor\Telop\TelopImageUsed;
-use App\Domain\Forecast\Poster\Processor\Forecast;
+use App\Domain\Forecast\Consumer\Telop;
+use App\Domain\Forecast\Consumer\TelopImageUsed;
+use App\Domain\Forecast\Consumer\Forecast;
 use Monolog\Logger;
 
 class ForecastDto extends DtoBase

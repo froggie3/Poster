@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace App\Domain\Forecast\Poster\Processor\Telop;
+namespace App\Domain\Forecast\Consumer;
 
 class Telop
 {
@@ -24,7 +24,7 @@ class Telop
         string    $distinctName,
         string    $emojiName,
         string    $telopFilename,
-        int    $telopIdParent,
+        int       $telopIdParent,
         TelopImageUsed $typeExistsIn,
     ) {
         $this->distinct_name = $distinctName;
