@@ -1,4 +1,4 @@
-# Forecast-Auto-Post
+# Poster 
 
 This tool allows you to aggregate some of information that you would likely to utilize in your real life, such as weather forecast, RSS feed, and etc.
 
