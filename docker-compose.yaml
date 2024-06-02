@@ -1,0 +1,7 @@
+services:
+    poster:
+        build:
+            context: .
+            dockerfile: docker/Dockerfile
+        volumes:
+            - ./sqlite.db:/poster/sqlite.db

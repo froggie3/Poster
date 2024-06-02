@@ -1,0 +1,2 @@
+QStandardPaths: error creating runtime directory '/run/user/1000/' (Permission denied)
+Fontconfig error: "/home/iigau/.config/fontconfig/fonts.conf", line 1: no element found
