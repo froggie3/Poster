@@ -1,0 +1,131 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+namespace Iigau\Poster;
+
+if (php_sapi_name() !== 'cli') {
+    exit;
+}
+
+require __DIR__ . "/../vendor/autoload.php";
+
+
+use Discord\Builders\CommandBuilder;
+use Discord\Discord;
+use Discord\Parts\Channel\Channel;
+use Discord\Parts\Channel\Message;
+use Discord\Parts\Interactions\Interaction;
+use Discord\WebSockets\Event;
+use Discord\WebSockets\Intents;
+use Iigau\Poster\Constants;
+use Iigau\Poster\Forecast\Place;
+use Iigau\Poster\Forecast\Utils;
+use Iigau\Poster\Flags;
+use Monolog\Logger;
+use React\EventLoop\Loop;
+use React\Promise\ExtendedPromiseInterface;
+
+use function Iigau\Poster\Forecast\process;
+
+$stream = Utils::prepareStreamHandler();
+$logger = new Logger("Forecast", [$stream]);
+$flags = new Flags();
+
+$longOpts = [
+    Constants::PARAM_DATABASE_PATH . ":", // Required value
+    Constants::FLAG_FORCE_UPDATE, // No value
+];
+
+$options = getopt("", $longOpts);
+
+if (!array_key_exists(Constants::PARAM_DATABASE_PATH, $options)) {
+    throw new \Error("Please specify --" . Constants::PARAM_DATABASE_PATH . ".");
+}
+$databasePath = $options[Constants::PARAM_DATABASE_PATH];
+$flags = $flags->setDatabasePath($databasePath);
+
+if (array_key_exists(Constants::FLAG_FORCE_UPDATE, $options)) {
+    echo "force update enabled.\n";
+    $flags = $flags->setForced();
+}
+
+$pdo = Utils::preparePdo();
+
+$discord = new Discord([
+    'token' => Utils::getSettingValue($pdo, 'bot_token'),
+    'intents' => Intents::getDefaultIntents()
+        | Intents::GUILD_MEMBERS
+        | Intents::MESSAGE_CONTENT,
+    'loop' => Loop::get(),
+    'logger' => $logger
+]);
+
+$discord->on('init', function (
+    Discord $discord
+) use (
+    $logger,
+    $flags,
+    $pdo
+) {
+    $loop = $discord->getLoop();
+
+    $forecastCommandPart = CommandBuilder::new()
+        ->setName("forecast")
+        ->setDescription('天気予報をその場で取得します。')
+        ->toArray();
+
+    $forecastCommand = $discord->application->commands->create(
+        $forecastCommandPart
+    );
+
+    $discord->application->commands->save($forecastCommand);
+
+    $headers = [
+        'Content-Type' => 'application/json'
+    ];
+
+    $forecast = Place::create(
+        Utils::prepareHttpClient($headers),
+        $discord,
+        $logger,
+        $pdo,
+        $flags
+    );
+
+    $loop->addPeriodicTimer(1.0, function () use (
+        $discord,
+        $forecast
+    ): ExtendedPromiseInterface | false {
+        if (Utils::isCurrentHour(6) || Utils::isCurrentHour(18)) {
+            $builder = process($forecast);
+            $attributes = [
+                "id" => $forecast->channelId,
+            ];
+            $channel = new Channel($discord, $attributes);
+
+            return $channel->sendMessage($builder);
+        }
+        return false;
+    });
+
+    $discord->on(Event::MESSAGE_CREATE, function (
+        Message $message
+    ) use ($logger) {
+        $logger->debug("{$message->author->username}: {$message->content}");
+    });
+
+    $discord->listenCommand("forecast", function (
+        Interaction $interaction
+    ) use (
+        $discord,
+        $forecast
+    ): ExtendedPromiseInterface {
+        $builder = process($forecast);
+
+        return $interaction->respondWithMessage($builder);
+    });
+});
+
+$discord->run();

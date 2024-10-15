@@ -1,7 +1,9 @@
 services:
     poster:
+        environment:
+            DATABASE_PATH: "./sqlite.db"
         build:
             context: .
-            dockerfile: docker/Dockerfile
+            dockerfile: ./docker/Dockerfile
         volumes:
             - ./sqlite.db:/poster/sqlite.db

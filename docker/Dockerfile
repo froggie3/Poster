@@ -1,18 +1,24 @@
-FROM php:8.2-cli AS builder
+FROM composer:latest AS composer
 
-FROM --platform=arm64 composer:2.6.6 AS composer
+FROM php:cli-bullseye AS build
+
 COPY --from=composer /usr/bin/composer /usr/bin/composer
 
 WORKDIR /poster
-COPY ./backend .
-RUN rm -rf ./tests ./vendor ./app/.phpdoc
-RUN ls -la
-RUN composer update
-RUN rm -f composer* 
 
-FROM php:8.2-cli AS vendor
+COPY ./backend/composer.json .
+COPY ./backend/composer.lock .
+RUN apt-get update && \
+    apt-get install -y git unzip && \
+    composer update
+
+COPY ./backend/src ./src
+COPY ./backend/bin ./bin
+
+FROM php:cli-bullseye
+
+COPY --from=build /poster /poster
+
 WORKDIR /poster
-COPY --from=composer /poster .
-RUN ls -la
 
-CMD ["php", "./bin/minicli", "forecast"]
+CMD ["php", "./bin/forecast", "--database-path", "./sqlite.db"]
