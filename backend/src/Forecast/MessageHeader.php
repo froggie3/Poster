@@ -9,26 +9,31 @@ use PDO;
 class MessageHeader
 {
     /**
-     * 接頭辞になるベースURL
-     * 
-     * @var string 
+     * ファイル名などの接頭辞として添加されるベース URL。
+     *
+     * @var string
      */
     readonly public string $baseUrl;
 
     /**
-     * メッセージ作成者の画像URL
-     * 
-     * @var string 
+     * メッセージ作成者の画像 URL。
+     *
+     * @var string
      */
     readonly public string $authorUrl;
 
     /**
-     * アバター画像のURL
-     * 
-     * @var string 
+     * メッセージ作成者としてメッセージの左側に表示されるアバター画像の URL
+     *
+     * @var string
      */
     readonly public string $avatarUrl;
 
+    /**
+     * コンストラクタ
+     *
+     * @param string $baseUrl
+     */
     public function __construct(string $baseUrl)
     {
         $this->baseUrl = $baseUrl;

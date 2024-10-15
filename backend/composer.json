@@ -1,13 +1,4 @@
 {
-    "require": {
-        "monolog/monolog": "^3.4",
-        "debril/feed-io": "^6.0",
-        "symfony/http-client": "^6.4",
-        "minicli/minicli": "^4.2",
-        "guzzlehttp/guzzle": "^7.8",
-        "minicli/command-help": "^1.0",
-        "team-reflex/discord-php": "dev-master"
-    },
     "autoload": {
         "psr-4": {
             "Iigau\\Poster\\": "src/"
@@ -17,5 +8,11 @@
         "allow-plugins": {
             "php-http/discovery": true
         }
+    },
+    "require": {
+        "monolog/monolog": "^3.7",
+        "symfony/http-client": "^7.1",
+        "guzzlehttp/guzzle": "^7.9",
+        "team-reflex/discord-php": "dev-master"
     }
 }

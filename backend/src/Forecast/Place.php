@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Discord\Builders\MessageBuilder;
 use Discord\Discord;
 use Discord\Parts\Embed\Embed;
+use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Psr7\Request;
 use Iigau\Poster\Config;
 use Iigau\Poster\Flags;
@@ -18,6 +19,17 @@ use Psr\Log\LoggerInterface;
 
 use Psr\Http\Client\ClientInterface;
 
+/**
+ * 必要な情報とインスタンスを管理するクラス
+ *
+ * @property ClientInterface $client
+ * @property Discord $discord
+ * @property LoggerInterface $logger
+ * @property PDO $pdo
+ * @property string $placeId
+ * @property string $channelId
+ * @property bool $isForced
+ */
 class Place
 {
     /**
@@ -69,6 +81,17 @@ class Place
      */
     readonly bool $isForced;
 
+    /**
+     * コンストラクタ
+     *
+     * @param ClientInterface $client
+     * @param Discord $discord
+     * @param LoggerInterface $logger
+     * @param PDO $pdo
+     * @param string $placeId
+     * @param string $channelId
+     * @param bool $isForced
+     */
     function __construct(
         ClientInterface $client,
         Discord $discord,
@@ -151,7 +174,6 @@ function fetch(Place $place): string
     $result = $stmt->fetchAll(PDO::FETCH_FUNC, function (array $data): WeatherForecast {
         return new WeatherForecast($data);
     });
-    var_dump($result);
 
     if (isset($result->cache) && !empty($result->cache)) {
         echo "cache available!\n";
@@ -234,7 +256,7 @@ function process(Place $place): MessageBuilder
         return $message;
     } catch (\PDOException $e) {
         $place->logger->critical($e->getMessage());
-    } catch (\Http\Client\Exception $e) {
+    } catch (GuzzleException $e) {
         $place->logger->critical($e->getMessage());
     } catch (\JsonException $e) {
         $place->logger->critical($e->getMessage());

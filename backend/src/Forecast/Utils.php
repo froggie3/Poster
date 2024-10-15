@@ -11,8 +11,8 @@ use PDO;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\Handler\CurlHandler;
 use Psr\Http\Message\RequestInterface;
-use Monolog\Logger;
 use GuzzleHttp\Client;
+use Psr\Http\Client\ClientInterface;
 
 class Utils
 {
@@ -76,7 +76,7 @@ class Utils
      * 
      * @return Client HTTP Client.
      */
-    static function prepareHttpClient(array $headers = []): Client
+    static function prepareHttpClient(array $headers = []): ClientInterface
     {
         $stack = new HandlerStack();
         $stack->setHandler(new CurlHandler());
