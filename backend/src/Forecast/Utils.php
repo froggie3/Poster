@@ -18,7 +18,7 @@ class Utils
 {
     /**
      * verifies whether $epochtime and $time are the same time.
-     * 
+     *
      * @param int $epochTime 基準時刻。
      * @param int $hour 比較する時間。
      * @return bool
@@ -30,7 +30,7 @@ class Utils
 
     /**
      * verifies current hour is $hour.
-     * 
+     *
      * @param int $hour 比較する時間。
      * @return bool
      */
@@ -41,15 +41,16 @@ class Utils
 
     /**
      * Prepare stream handler for Monolog.
-     * 
+     *
+     * @param \Monolog\Level ログレベル
      * @return StereamHandler StreamHandler.
      */
-    static function prepareStreamHandler(): StreamHandler
+    static function prepareStreamHandler($loglevel = \Monolog\Level::Info): StreamHandler
     {
         $dateFormat = "Y-m-d\TH:i:sP";
         $output = "[%datetime%] %channel%.%level_name%: %message% %context% %extra%\n";
         $formatter = new LineFormatter($output, $dateFormat, false, true, true);
-        $stream = new StreamHandler(CONFIG::LOGGING_PATH, Config::MONOLOG_LOG_LEVEL);
+        $stream = new StreamHandler(CONFIG::LOGGING_PATH, $loglevel);
         $stream->setFormatter($formatter);
 
         return $stream;
@@ -57,23 +58,19 @@ class Utils
 
     /**
      * A class that applies the content of command-line flags, and returns PDO instance.
-     * 
+     *
      * @return PDO PDO.
      */
-    static function preparePdo(): PDO
+    static function preparePdo(string $databasePath): PDO
     {
-        $environmentVariableName = "DATABASE_PATH";
-
-        $databasePath = getenv($environmentVariableName) ?: Config::DATABASE_PATH; // fallback
         $dsn = "sqlite:$databasePath";
-
         return new \PDO($dsn);
     }
 
     /**
      * Prepare HTTP Client.
      * Reference: https://docs.guzzlephp.org/en/stable/handlers-and-middleware.html#middleware
-     * 
+     *
      * @return Client HTTP Client.
      */
     static function prepareHttpClient(array $headers = []): ClientInterface
@@ -101,7 +98,7 @@ class Utils
     }
     /**
      * 設定テーブルの中の特定のキーを探して値を取り出す
-     * 
+     *
      * @param PDO Database.
      * @param string $key キー名を探します
      * @return string string.
@@ -113,7 +110,7 @@ class Utils
             p.name as placeName,
             a.channel_id AS channelId,
             a.place_id AS placeId,
-            p.updated_at AS updatedAt 
+            p.updated_at AS updatedAt
         FROM registers AS a
         INNER JOIN channels AS c ON a.channel_id = c.channel_id
         INNER JOIN weather_places AS p ON p.place_id = a.place_id
@@ -128,7 +125,7 @@ class Utils
 
     /**
      * 設定テーブルの中の特定のキーを探して値を取り出す
-     * 
+     *
      * @param PDO Database.
      * @param string $key キー名を探します
      * @return string string.

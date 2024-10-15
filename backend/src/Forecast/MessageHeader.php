@@ -44,7 +44,7 @@ class MessageHeader
 
     /**
      * データベースからベースURLを取得して新しいインスタンスを作成する。
-     * 
+     *
      * @param PDO データベース接続
      * @return MessageHeader MessageHeader.
      */

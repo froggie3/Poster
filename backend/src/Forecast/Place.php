@@ -92,15 +92,8 @@ class Place
      * @param string $channelId
      * @param bool $isForced
      */
-    function __construct(
-        ClientInterface $client,
-        Discord $discord,
-        LoggerInterface $logger,
-        PDO $pdo,
-        string $placeId,
-        string $channelId,
-        bool $isForced
-    ) {
+    function __construct(ClientInterface $client, Discord $discord, LoggerInterface $logger, PDO $pdo, string $placeId, string $channelId, bool $isForced)
+    {
         $this->client = $client;
         $this->discord = $discord;
         $this->logger = $logger;
@@ -110,25 +103,9 @@ class Place
         $this->isForced = $isForced;
     }
 
-    static function create(
-        ClientInterface $client,
-        Discord $discord,
-        LoggerInterface $logger,
-        PDO $pdo,
-        Flags $flags
-    ) {
-
-        $sql = "SELECT
-        title AS place_name,
-        p.name,
-        a.channel_id AS channelId,
-        a.place_id AS placeId,
-        p.updated_at
-        FROM registers AS a
-        INNER JOIN channels AS c ON a.channel_id = c.channel_id
-        INNER JOIN weather_places AS p ON p.place_id = a.place_id
-        WHERE enabled = 1
-        LIMIT 1;";
+    static function create(ClientInterface $client, Discord $discord, LoggerInterface $logger, PDO $pdo, bool $isForced)
+    {
+        $sql = "SELECT title AS place_name, p.name, a.channel_id AS channelId, a.place_id AS placeId, p.updated_at FROM registers AS a INNER JOIN channels AS c ON a.channel_id = c.channel_id INNER JOIN weather_places AS p ON p.place_id = a.place_id WHERE enabled = 1 LIMIT 1;";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
@@ -137,20 +114,48 @@ class Place
         $placeId = $result[0]->placeId;
         $channelId = $result[0]->channelId;
 
+        return new self($client, $discord, $logger, $pdo, $placeId, $channelId, $isForced);
+    }
 
-        return new self(
-            $client,
-            $discord,
-            $logger,
-            $pdo,
-            $placeId,
-            $channelId,
-            $flags->isForced()
-        );
+    public function setPDO(PDO $pdo): void
+    {
+        $this->pdo = $pdo;
+    }
+
+    public function getPDO(): PDO | false
+    {
+        if (is_null($this->pdo)) {
+            return false;
+        }
+        return $this->pdo;
+    }
+
+    public function setLogger(LoggerInterface $logger): void
+    {
+        $this->logger = $logger;
+    }
+
+    public function getLogger(): LoggerInterface | false
+    {
+        if (is_null($this->logger)) {
+            return false;
+        }
+        return $this->logger;
+    }
+
+    public function setDiscord(Discord $discord): void
+    {
+        $this->discord = $discord;
+    }
+
+    public function getDiscord(): Discord | false
+    {
+        if (is_null($this->discord)) {
+            return false;
+        }
+        return $this->discord;
     }
 }
-
-
 
 /**
  * DBから期限切れでないキャッシュの取得を試みる。
@@ -312,10 +317,8 @@ function createMessageOnfailed(
  * @param int $telopNumber
  * @return Telop
  */
-function getAssociatesFromTelop(
-    PDO $pdo,
-    int $telopNumber
-): Telop {
+function getAssociatesFromTelop(PDO $pdo, int $telopNumber): Telop
+{
     $stmt = $pdo->prepare(
         "SELECT number,
         distinct_name AS distinctName,
@@ -337,10 +340,8 @@ function getAssociatesFromTelop(
  * @param Embed $embed
  * @return Embed
  */
-function getEmbedPartial(
-    MessageHeader $header,
-    Embed $embed
-): Embed {
+function getEmbedPartial(MessageHeader $header, Embed $embed): Embed
+{
     $part = $embed
         ->setFooter("Deployed by Yokkin", $header->authorUrl)
         ->setAuthor("NHK NEWS WEB", $header->avatarUrl, "https://www3.nhk.or.jp/news/")
@@ -356,10 +357,8 @@ function getEmbedPartial(
  * @param MessageBuilder $messageBuilder
  * @return MessageBuilder
  */
-function getMessagePartial(
-    MessageHeader $header,
-    MessageBuilder $messageBuilder
-): MessageBuilder {
+function getMessagePartial(MessageHeader $header, MessageBuilder $messageBuilder): MessageBuilder
+{
     $part = $messageBuilder
         ->setUsername("NHK NEWS WEB")
         ->setAvatarUrl($header->avatarUrl);
@@ -377,13 +376,8 @@ function getMessagePartial(
  * @param Telop $tp DB から拾ってきたテロップの関連情報
  * @return MessageBuilder
  */
-function createMessage(
-    MessageHeader $header,
-    MessageBuilder $messageBuilder,
-    Embed $embed,
-    WeatherForecast $response,
-    Telop $tp
-): MessageBuilder {
+function createMessage(MessageHeader $header, MessageBuilder $messageBuilder, Embed $embed, WeatherForecast $response, Telop $tp): MessageBuilder
+{
     assert($response instanceof WeatherForecast);
 
     // 投稿日時にする？
