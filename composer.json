@@ -1,6 +1,5 @@
 {
     "require": {
-        "team-reflex/discord-php": "dev-master",
-        "netresearch/jsonmapper": "^5.0"
+        "team-reflex/discord-php": "dev-master"
     }
 }
