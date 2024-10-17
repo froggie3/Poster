@@ -213,7 +213,7 @@ function fetch(Place $place): string
  * @param Place $place
  * @return MessageBuilder
  */
-function process(Place $place): MessageBuilder
+function buildMessage(Place $place): MessageBuilder
 {
     $header = MessageHeader::createFromDB($place->pdo);
     $message = getMessagePartial($header, new MessageBuilder());
@@ -250,7 +250,7 @@ function process(Place $place): MessageBuilder
 function createMessageOnfailed(MessageHeader $header, MessageBuilder $message, Embed $embed): MessageBuilder
 {
     $dt = new DateTimeImmutable();
-    $message = $message
+    $message
         ->setContent(sprintf("%s 時点の天気予報の取得に失敗しました", $dt->format("H:i")))
         ->addEmbed(
             $embed
@@ -295,12 +295,12 @@ function getAssociatesFromTelop(PDO $pdo, string $telopNumber): Telop
  */
 function getEmbedPartial(MessageHeader $header, Embed $embed): Embed
 {
-    $part = $embed
+    $embed
         ->setFooter("Deployed by Yokkin", $header->authorUrl)
         ->setAuthor("NHK NEWS WEB", $header->avatarUrl, "https://www3.nhk.or.jp/news/")
         ->setColor(0x0076d1);
 
-    return $part;
+    return $embed;
 }
 
 /**
@@ -312,11 +312,11 @@ function getEmbedPartial(MessageHeader $header, Embed $embed): Embed
  */
 function getMessagePartial(MessageHeader $header, MessageBuilder $message): MessageBuilder
 {
-    $part = $message
+    $message
         ->setUsername("NHK NEWS WEB")
         ->setAvatarUrl($header->avatarUrl);
 
-    return $part;
+    return $message;
 }
 
 /**

@@ -11,43 +11,31 @@ class TrfForecast
 {
     /**
      * 予報日時。
-     *
-     * @var string $forecastDate;
      */
     readonly string $forecastDate;
 
     /**
      * 最高気温の前日差。
-     *
-     * @var string $maxTempDiff;
      */
     readonly string $maxTempDiff;
 
     /**
      * 最高気温。
-     *
-     * @var string $maxTemp;
      */
     readonly string $maxTemp;
 
     /**
      * テロップ番号。
-     *
-     * @var string $telop;
      */
     readonly string $telop;
 
     /**
      * 最低気温の前日差。
-     *
-     * @var string $minTempDiff;
      */
     readonly string $minTempDiff;
 
     /**
      * 最低気温。
-     *
-     * @var string $minTemp;
      */
     readonly string $minTemp;
 
@@ -60,11 +48,12 @@ class TrfForecast
 
     /**
      * 一日を通じた降水確率。
-     *
-     * @var string $rainyDay;
      */
     readonly string $rainyDay;
 
+    /**
+     * コンストラクタ。
+     */
     public function __construct(array $data)
     {
         $this->forecastDate = $data['forecast_date'];

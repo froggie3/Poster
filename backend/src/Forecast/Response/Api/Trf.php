@@ -23,6 +23,9 @@ class Trf
      */
     readonly TrfAtr $trfAtr;
 
+    /**
+     * コンストラクタ
+     */
     public function __construct(array $data)
     {
         $this->forecast = array_map(fn($item) => new TrfForecast($item), $data['forecast']);

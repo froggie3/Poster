@@ -16,6 +16,9 @@ class WeatherForecast
     readonly Kafun $kafun;
     readonly Trf $trf;
 
+    /**
+     * コンストラクタ
+     */
     public function __construct(array $data)
     {
         $this->srf = new Srf($data['srf']);

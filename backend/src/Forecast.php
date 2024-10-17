@@ -15,6 +15,7 @@ use Discord\Builders\CommandBuilder;
 use Discord\Discord;
 use Discord\Parts\Channel\Channel;
 use Discord\Parts\Channel\Message;
+use Discord\Parts\Interactions\Command\Command;
 use Discord\Parts\Interactions\Interaction;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
@@ -24,7 +25,7 @@ use Monolog\Logger;
 use React\EventLoop\Loop;
 use React\Promise\ExtendedPromiseInterface;
 
-use function Iigau\Poster\Forecast\process;
+use function Iigau\Poster\Forecast\buildMessage;
 
 class Forecast
 {
@@ -97,20 +98,17 @@ class Forecast
         $discord->on('init', function (Discord $discord) use ($forecast) {
             $loop = $discord->getLoop();
 
-            $forecastCommandPart = CommandBuilder::new()
-                ->setName("forecast")
-                ->setDescription('天気予報をその場で取得します。')
-                ->toArray();
-
-            $forecastCommand = $discord->application->commands->create(
-                $forecastCommandPart
-            );
-
-            $discord->application->commands->save($forecastCommand);
+            $commands = [
+                ['name' => "forecast", 'description' => '天気予報をその場で取得します。',],
+                ['name' => "ping", 'description' => 'Bot に ping を送信します。',],
+            ];
+            foreach ($commands as $command) {
+                $discord->application->commands->save(new Command($discord, $command));
+            }
 
             $loop->addPeriodicTimer(1.0, function () use ($discord, $forecast): ExtendedPromiseInterface | false {
                 if (Utils::isCurrentHour(6) || Utils::isCurrentHour(18)) {
-                    $builder = process($forecast);
+                    $builder = buildMessage($forecast);
                     $attributes = [
                         "id" => $forecast->channelId,
                     ];
@@ -126,10 +124,14 @@ class Forecast
             });
 
             $discord->listenCommand("forecast", function (Interaction $interaction) use ($forecast): ExtendedPromiseInterface {
-                $builder = process($forecast);
+                $builder = buildMessage($forecast);
 
                 return $interaction->respondWithMessage($builder);
             });
+
+            // $discord->listenCommand("ping", function (Interaction $interaction) use ($forecast): ExtendedPromiseInterface {
+            //     return $interaction->respondWithMessage($builder);
+            // });
         });
 
         $discord->run();
