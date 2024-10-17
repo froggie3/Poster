@@ -16,39 +16,32 @@ namespace Iigau\Poster;
 class Config
 {
     /**
-     * キャッシュを無効化し、強制的に更新するコマンドラインフラグ
+     * 接続タイムアウトの秒数。
      *
-     * @var string
+     * @var int
      */
     public const CONNECTION_TIMEOUT_SECONDS = 10;
 
     /**
-     * HTTP リクエストの時間間隔
+     * HTTP リクエストの時間間隔。
      *
      * @var string
      */
     public const INTERVAL_REQUEST_SECONDS = 1;
 
     /**
-     * キャッシュの寿命
+     * キャッシュの寿命。
      *
      * @var int
      */
     public const FORECAST_CACHE_LIFETIME = 3600;
 
     /**
-     * 最大試行回数
+     * 最大試行回数。
      *
      * @var int
      */
     public const MAX_REQUEST_RETRY = 5;
-
-    /**
-     * 環境変数で持っておくべき？
-     *
-     * @var string
-     */
-    public const DATABASE_PATH = __DIR__ . '/../../sqlite.db';
 
     /**
      * ログのパス
