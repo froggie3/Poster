@@ -26,7 +26,7 @@ use React\Promise\ExtendedPromiseInterface;
 
 use function Iigau\Poster\Forecast\process;
 
-class Forcast
+class Forecast
 {
     readonly Place $forecast;
 

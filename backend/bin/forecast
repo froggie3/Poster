@@ -10,4 +10,4 @@ if (php_sapi_name() !== 'cli') {
 
 require __DIR__ . "/../vendor/autoload.php";
 
-(new Forcast($argv))->run();
+(new Forecast($argv))->run();
