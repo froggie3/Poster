@@ -155,7 +155,17 @@ class Place
 
         // Todo: handle HTTP error
         try {
-            $response = WeatherForecast::fromJson(fetch($place));
+            $json = null;
+            if ($place->isForced) {
+                $json = fetchCore($place);
+            } else {
+                if (!shouldUpdateAlternative($place)) {
+                    $json = fetchCache($place);
+                } else {
+                    $json = fetch($place);
+                }
+            }
+            $response = WeatherForecast::fromJson($json);
             $telop = getAssociatesFromTelop($place->pdo, $response->trf->forecast[0]->telop);
             return createMessageOnSuccess($header, $message, $embed, $response, $telop);
         } catch (\PDOException $e) {
@@ -173,6 +183,156 @@ class Place
     }
 }
 
+
+/**
+ * DB のキャッシュをアップデートする必要があるか判定
+ *
+ * @param Place
+ * @return bool
+ */
+function shouldUpdate(Place $place): bool
+{
+    $query = <<<SQL
+    SELECT
+        (elapsedSeconds > ?) AS shouldUpdate
+    FROM (
+        SELECT
+            (currentTime - updated_at) AS elapsedSeconds
+        FROM (
+            SELECT
+                updated_at,
+                strftime('%s', 'now') AS currentTime
+            FROM
+                weather_places
+            WHERE
+                place_id = ?
+        )
+    );
+    SQL;
+
+    $stmt = $place->pdo->prepare($query);
+
+    $stmt->execute([
+        Config::FORECAST_CACHE_LIFETIME,
+        $place->placeId,
+    ]);
+
+    $result = $stmt->fetch(PDO::FETCH_OBJ);
+    $shouldUpdate = $result->elapsedSeconds > Config::FORECAST_CACHE_LIFETIME;
+
+    $place->logger->debug("getting cache info", [
+        'placeId' => $place->placeId,
+        'cacheLifetime' => Config::FORECAST_CACHE_LIFETIME,
+        'shouldUpdate' => $shouldUpdate
+    ]);
+
+    return $shouldUpdate;
+}
+
+
+function fetchCache(Place $place): string
+{
+    $place->logger->debug("querying cache");
+    $query = "SELECT cache FROM weather_places WHERE place_id = ?";
+    $stmt = $place->pdo->prepare($query);
+    $stmt->execute([$place->placeId]);
+    $result = $stmt->fetch(PDO::FETCH_OBJ);
+    $content = $result->cache;
+    return $content;
+}
+
+/**
+ * DB のキャッシュをアップデートする必要があるか判定
+ *
+ * sqlite3 コマンドでは shouldUpdate = 1 となる query がなぜか 0 であり、
+ * 腑に落ちないがクライアント側で暫定的処理してます
+ *
+ * @param Place
+ * @return bool
+ */
+function shouldUpdateAlternative(Place $place): bool
+{
+    $query = <<<SQL
+    SELECT
+        elapsedSeconds,
+    FROM (
+        SELECT
+            (currentTime - updated_at) AS elapsedSeconds
+        FROM (
+            SELECT
+                updated_at,
+                strftime('%s', 'now') AS currentTime
+            FROM
+                weather_places
+            WHERE
+                place_id = ?
+        )
+    );
+    SQL;
+
+    $stmt = $place->pdo->prepare($query);
+
+    $stmt->execute([
+        Config::FORECAST_CACHE_LIFETIME,
+        $place->placeId,
+    ]);
+
+    $result = $stmt->fetch(PDO::FETCH_OBJ);
+
+    $shouldUpdate = $result->elapsedSeconds > Config::FORECAST_CACHE_LIFETIME;
+
+    $place->logger->debug("getting cache info", [
+        'placeId' => $place->placeId,
+        'cacheLifetime' => Config::FORECAST_CACHE_LIFETIME,
+        'elapsedSeconds' => $result->elapsedSeconds,
+    ]);
+
+    return $shouldUpdate;
+}
+
+function fetchCore(Place $place)
+{
+    $query = http_build_query([
+        'uid'  => $place->placeId,
+        'kind' => "web",
+        'akey' => hash("md5", "nhk"),
+    ]);
+    $url = "https://www.nhk.or.jp/weather-data/v1/lv3/wx/?$query";
+    $request = new Request("GET", $url);
+    $response = $place->client->sendRequest($request);
+    $body = $response->getBody();
+    $content = $body->getContents();
+    /* caching */
+    $queryCache = <<<SQL
+    UPDATE
+        weather_places
+    SET
+        cache = ?
+    WHERE
+        place_id = ?
+    SQL;
+    $stmtCache = $place->pdo->prepare($queryCache);
+    $stmtCache->execute([
+        Utils::JsonPrettyPrint($content),
+        $place->placeId
+    ]);
+    // 最新更新時刻を更新
+    $queryLocation = <<<SQL
+    UPDATE
+        weather_places
+    SET
+        updated_at = strftime('%s', 'now')
+    WHERE
+        place_id = ?
+    SQL;
+    $stmtLocation = $place->pdo->prepare($queryLocation);
+    $stmtLocation->execute([$place->placeId]);
+    /* end caching */
+
+    return $content;
+}
+
+
 /**
  * DBから期限切れでないキャッシュの取得を試みる。
  * もし結果が返ってこなかったらNHK NEWS APIにアクセスして最新の天気を取得。
@@ -184,44 +344,10 @@ class Place
 function fetch(Place $place): string
 {
     $logger = $place->discord->getLogger();
-    $logger->debug("fetching");
-    $query = "SELECT cache FROM weather_places WHERE place_id = ? AND strftime('%s', 'now') - updated_at < ?";
-    $stmt = $place->pdo->prepare($query);
-    $stmt->execute([$place->placeId, Config::FORECAST_CACHE_LIFETIME]);
-
-    $result = $stmt->fetchAll(PDO::FETCH_OBJ);
-
-    if (count($result) != 0) {
-        $logger->debug("cache is available on database for place id $place->placeId");
-        return $result[0]->cache;
-    } else {
-        $logger->debug("no cache available for place id $place->placeId, fetching...");
-        $query = http_build_query([
-            'uid'  => $place->placeId,
-            'kind' => "web",
-            'akey' => hash("md5", "nhk"),
-        ]);
-        $url = "https://www.nhk.or.jp/weather-data/v1/lv3/wx/?$query";
-        $request = new Request("GET", $url);
-        $response = $place->client->sendRequest($request);
-        $body = $response->getBody();
-        $content = $body->getContents();
-        /* caching */
-        $queryCache = "UPDATE weather_places SET cache = ? WHERE place_id = ?";
-        $stmtCache = $place->pdo->prepare($queryCache);
-        $stmtCache->execute([
-            Utils::JsonPrettyPrint($content),
-            $place->placeId
-        ]);
-        // 最新更新時刻を更新
-        $queryLocation = "UPDATE weather_places SET updated_at = strftime('%s', 'now') WHERE place_id = ?";
-        $stmtLocation = $place->pdo->prepare($queryLocation);
-        $stmtLocation->execute([$place->placeId]);
-        /* end caching */
-        return $content;
-    }
+    $logger->debug("no cache available for place id $place->placeId, fetching...");
+    $content = fetchCore($place);
+    return $content;
 }
-
 
 /**
  * Creates message on fail.
@@ -245,7 +371,6 @@ function createMessageOnfailed(MessageHeader $header, MessageBuilder $message, E
 
     return $message;
 }
-
 
 /**
  * Resolve the information from a telop number from the db.
