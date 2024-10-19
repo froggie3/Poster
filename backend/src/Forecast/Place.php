@@ -170,6 +170,7 @@ class Place
             return createMessageOnSuccess($header, $message, $embed, $response, $telop);
         } catch (\PDOException $e) {
             $place->logger->critical($e->getMessage());
+            $place->logger->critical($e->getTraceAsString());
         } catch (GuzzleException $e) {
             $place->logger->critical($e->getMessage());
         } catch (\JsonException $e) {
@@ -211,15 +212,12 @@ function shouldUpdate(Place $place): bool
     SQL;
 
     $stmt = $place->pdo->prepare($query);
-
     $stmt->execute([
         Config::FORECAST_CACHE_LIFETIME,
         $place->placeId,
     ]);
-
     $result = $stmt->fetch(PDO::FETCH_OBJ);
     $shouldUpdate = $result->elapsedSeconds > Config::FORECAST_CACHE_LIFETIME;
-
     $place->logger->debug("getting cache info", [
         'placeId' => $place->placeId,
         'cacheLifetime' => Config::FORECAST_CACHE_LIFETIME,
@@ -238,6 +236,7 @@ function fetchCache(Place $place): string
     $stmt->execute([$place->placeId]);
     $result = $stmt->fetch(PDO::FETCH_OBJ);
     $content = $result->cache;
+
     return $content;
 }
 
@@ -254,7 +253,7 @@ function shouldUpdateAlternative(Place $place): bool
 {
     $query = <<<SQL
     SELECT
-        elapsedSeconds,
+        elapsedSeconds
     FROM (
         SELECT
             (currentTime - updated_at) AS elapsedSeconds
@@ -271,16 +270,9 @@ function shouldUpdateAlternative(Place $place): bool
     SQL;
 
     $stmt = $place->pdo->prepare($query);
-
-    $stmt->execute([
-        Config::FORECAST_CACHE_LIFETIME,
-        $place->placeId,
-    ]);
-
+    $stmt->execute([$place->placeId]);
     $result = $stmt->fetch(PDO::FETCH_OBJ);
-
     $shouldUpdate = $result->elapsedSeconds > Config::FORECAST_CACHE_LIFETIME;
-
     $place->logger->debug("getting cache info", [
         'placeId' => $place->placeId,
         'cacheLifetime' => Config::FORECAST_CACHE_LIFETIME,
@@ -381,13 +373,17 @@ function createMessageOnfailed(MessageHeader $header, MessageBuilder $message, E
  */
 function getAssociatesFromTelop(PDO $pdo, string $telopNumber): Telop
 {
-    $stmt = $pdo->prepare(
-        "SELECT number,
-        distinct_name AS distinctName,
-        emoji_name AS emojiName,
+    $sql = <<<SQL
+    SELECT number,
+        distinct_name  AS distinctName,
+        emoji_name     AS emojiName,
         telop_filename AS telopFilename
-        FROM telop WHERE number = ?"
-    );
+    FROM
+        telop
+    WHERE
+        number = ?
+    SQL;
+    $stmt = $pdo->prepare($sql);
 
     $stmt->execute([$telopNumber]);
     $result = $stmt->fetchAll(PDO::FETCH_CLASS, Telop::class);
