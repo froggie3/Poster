@@ -41,25 +41,6 @@ class CliParser
     readonly string $db;
 
     /**
-     * ヘルプメッセージ
-     */
-    const HELP_MESSAGE = <<<EOM
-    Usage: :PROG -d|--db DATABASE [-f|--force] [-v|--verbose] [-h|--help]
-
-    Discord bot written in PHP.
-
-    Mandatory options:
-      -d, --db=FILE   Command line flag to specify database.
-
-    Options:
-      -f, --force     Invalidate cache and force update.
-      -v, --verbose   Show debug message.
-      -h, --help      Show this message and exit.
-
-    Author: Yokkin <https://yokkin.com>
-    EOM;
-
-    /**
      * 正常終了コード
      */
     const EXIT_CODE = 0;
@@ -91,8 +72,35 @@ class CliParser
         foreach ($valuePattern as $property => [$call, $test]) {
             $this->{$property} = $this->testValue($this->opt, $test, $call);
         }
+    }
 
-        $this->debug();
+    private function showUsage(): void
+    {
+        $usage = "Usage: :PROG -d|--db DATABASE [-f|--force] [-v|--verbose] [-h|--help]";
+        $outString = str_replace(":PROG", $this->cliArgs[0], $usage);
+
+        echo $outString, "\n";
+    }
+
+    private function showHelp(): void
+    {
+        $helpMessage = <<<EOM
+            Discord bot written in PHP.
+
+            Mandatory options:
+              -d, --db=FILE   Command line flag to specify database.
+
+            Options:
+              -f, --force     Invalidate cache and force update.
+              -v, --verbose   Show debug message.
+              -h, --help      Show this message and exit.
+
+            Author: Yokkin <https://yokkin.com>
+            EOM;
+
+        $this->showUsage();
+
+        echo $helpMessage, "\n";
     }
 
     /**
@@ -102,40 +110,37 @@ class CliParser
      * 
      * それ以外のエラーでは適当なエラーコードが別の場所で返されるように `perposed = false`
      */
-    protected function help(...$perposed): void
+    protected function help(bool $result): void
     {
-        echo str_replace(":PROG", $this->cliArgs[0], self::HELP_MESSAGE) . "\n";
-        $isHelp = array_shift($perposed);
-        if ($isHelp) {
-            exit(self::EXIT_CODE);
-        }
+        if (!$result) return;
+        $this->showHelp();
+        exit(self::EXIT_CODE);
     }
 
-    protected function debug(...$result): void
+    protected function debug(bool $result): void
     {
-        // var_dump($this->opt);
         var_dump($this);
     }
 
-    protected function forced(...$result): void
+    protected function forced(bool $result): void
     {
+        if (!$result) return;
         echo "force update enabled.\n";
     }
 
-    protected function verbose(...$result): void
+    protected function verbose(bool $result): void
     {
+        if (!$result) return;
         echo "showing logs for debugging.\n";
     }
 
-    protected function db(...$result): void
+    protected function db(string|null $db): void
     {
-        $db = array_pop($result);
         try {
-            if (is_null($db)) {
-                throw new \Exception("Please specify --db option.");
-            }
+            if (!is_null($db)) return;
+            $this->showUsage();
+            throw new \Exception("Please specify --db option.");
         } catch (\Exception $e) {
-            echo $this->help(false);
             echo $e->getMessage() . "\n";
             exit(self::EXIT_CODE | 1);
         }
@@ -164,6 +169,7 @@ class CliParser
         if (!is_null($callback)) {
             $this->$callback($result);
         }
+
         return $result;
     }
 

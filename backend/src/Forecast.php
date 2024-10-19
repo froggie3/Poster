@@ -15,7 +15,6 @@ use Discord\Discord;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 use Iigau\Poster\Cli\CliParser;
-use Iigau\Poster\Cli\CliParseResult;
 use Iigau\Poster\Forecast\Place;
 use Iigau\Poster\Forecast\Utils;
 use Psr\Log\LoggerInterface;
