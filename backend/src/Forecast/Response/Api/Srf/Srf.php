@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Iigau\Poster\Forecast\Response\Api;
+namespace Iigau\Poster\Forecast\Response\Api\Srf;
 
 /**
- * 1 時間ごとの予報
+ * 1 時間ごとの予報。
  */
 class Srf
 {
@@ -17,10 +17,13 @@ class Srf
     readonly array $forecast;
 
     /**
-     * 
+     * 情報。
      */
     readonly SrfAtr $srfAtr;
 
+    /**
+     * コンストラクタ。
+     */
     public function __construct(array $data)
     {
         $this->forecast = array_map(fn($item) => new Forecast($item), $data['forecast']);

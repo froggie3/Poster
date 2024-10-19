@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Iigau\Poster\Forecast\Response\Api;
+namespace Iigau\Poster\Forecast\Response\Api\Mrf;
 
 /**
  * 10 日間天気予報の情報。

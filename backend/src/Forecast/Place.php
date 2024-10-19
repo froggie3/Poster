@@ -102,20 +102,6 @@ class Place
         $this->isForced = $isForced;
     }
 
-    static function create(ClientInterface $client, Discord $discord, LoggerInterface $logger, PDO $pdo, bool $isForced)
-    {
-        $sql = "SELECT title AS place_name, p.name, a.channel_id AS channelId, a.place_id AS placeId, p.updated_at FROM registers AS a INNER JOIN channels AS c ON a.channel_id = c.channel_id INNER JOIN weather_places AS p ON p.place_id = a.place_id WHERE enabled = 1 LIMIT 1;";
-
-        $stmt = $pdo->prepare($sql);
-        $stmt->execute();
-        $result = $stmt->fetchAll(PDO::FETCH_OBJ);
-
-        $placeId = $result[0]->placeId;
-        $channelId = $result[0]->channelId;
-
-        return new self($client, $discord, $logger, $pdo, $placeId, $channelId, $isForced);
-    }
-
     public function setPDO(PDO $pdo): void
     {
         $this->pdo = $pdo;
@@ -154,6 +140,37 @@ class Place
         }
         return $this->discord;
     }
+    /**
+     * メイン処理
+     *
+     * @param Place $place
+     * @return MessageBuilder
+     */
+    static function buildMessage(Place $place): MessageBuilder
+    {
+        $header = MessageHeader::createFromDB($place->pdo);
+        $message = getMessagePartial($header, new MessageBuilder());
+        $embed = getEmbedPartial($header, new Embed($place->discord));
+
+        // Todo: handle HTTP error
+        try {
+            $response = WeatherForecast::fromJson(fetch($place));
+            $telop = getAssociatesFromTelop($place->pdo, $response->trf->forecast[0]->telop);
+            return createMessageOnSuccess($header, $message, $embed, $response, $telop);
+        } catch (\PDOException $e) {
+            $place->logger->critical($e->getMessage());
+        } catch (GuzzleException $e) {
+            $place->logger->critical($e->getMessage());
+        } catch (\JsonException $e) {
+            $place->logger->critical($e->getMessage());
+        } catch (\TypeError $e) {
+            $place->logger->critical($e->getMessage());
+        } catch (\Exception $e) {
+            $place->logger->critical($e->getMessage());
+        } finally {
+            return createMessageOnfailed($header, $message, $embed);
+        }
+    }
 }
 
 /**
@@ -171,7 +188,7 @@ function fetch(Place $place): string
     $stmt = $place->pdo->prepare($query);
     $stmt->execute([$place->placeId, Config::FORECAST_CACHE_LIFETIME]);
 
-    // データベースから取得したJSONレスポンスをクラス表現にマップするコールバック関数
+    // データベースから取得したコールバック関数
     $result = $stmt->fetchAll(PDO::FETCH_FUNC, function (array $data): WeatherForecast {
         return new WeatherForecast($data);
     });
@@ -195,49 +212,18 @@ function fetch(Place $place): string
         $queryCache = "UPDATE weather_places SET cache = ? WHERE place_id = ?";
         $stmtCache = $place->pdo->prepare($queryCache);
         $stmtCache->execute([
-            json_encode(json_decode($content), JSON_PRETTY_PRINT),
+            Utils::JsonPrettyPrint($content),
             $place->placeId
         ]);
         // 最新更新時刻を更新
         $queryLocation = "UPDATE weather_places SET updated_at = strftime('%s', 'now') WHERE place_id = ?";
         $stmtLocation = $place->pdo->prepare($queryLocation);
         $stmtLocation->execute([$place->placeId]);
-        /* end caching*/
+        /* end caching */
         return $content;
     }
 }
 
-/**
- * メイン処理
- *
- * @param Place $place
- * @return MessageBuilder
- */
-function buildMessage(Place $place): MessageBuilder
-{
-    $header = MessageHeader::createFromDB($place->pdo);
-    $message = getMessagePartial($header, new MessageBuilder());
-    $embed = getEmbedPartial($header, new Embed($place->discord));
-
-    // Todo: handle HTTP error
-    try {
-        $response = new WeatherForecast(json_decode(fetch($place), true, flags: JSON_THROW_ON_ERROR));
-        $telop = getAssociatesFromTelop($place->pdo, $response->trf->forecast[0]->telop);
-        return createMessageOnSuccess($header, $message, $embed, $response, $telop);
-    } catch (\PDOException $e) {
-        $place->logger->critical($e->getMessage());
-    } catch (GuzzleException $e) {
-        $place->logger->critical($e->getMessage());
-    } catch (\JsonException $e) {
-        $place->logger->critical($e->getMessage());
-    } catch (\TypeError $e) {
-        $place->logger->critical($e->getMessage());
-    } catch (\Exception $e) {
-        $place->logger->critical($e->getMessage());
-    } finally {
-        return createMessageOnfailed($header, $message, $embed);
-    }
-}
 
 /**
  * Creates message on fail.
@@ -286,19 +272,25 @@ function getAssociatesFromTelop(PDO $pdo, string $telopNumber): Telop
     return $result[0];
 }
 
+
 /**
  * Gets embed partials.
  *
+ * @see https://discordapp.com/channels/115233111977099271/234582138740146176/1257752506117914704
  * @param MessageHeader $header
  * @param Embed $embed
  * @return Embed
  */
 function getEmbedPartial(MessageHeader $header, Embed $embed): Embed
 {
+    // 青色（NHK天気・防災アプリの色）
+    $colorCode = 0x0076d1;
     $embed
-        ->setFooter("Deployed by Yokkin", $header->authorUrl)
         ->setAuthor("NHK NEWS WEB", $header->avatarUrl, "https://www3.nhk.or.jp/news/")
-        ->setColor(0x0076d1);
+        ->setColor($colorCode)
+        ->setFooter("Deployed by Yokkin", $header->authorUrl)
+        // ->setURL('')
+    ;
 
     return $embed;
 }
@@ -334,20 +326,20 @@ function createMessageOnSuccess(MessageHeader $header, MessageBuilder $message, 
     $thumbnailUrl = "$header->baseUrl/{$tp->telopFilename}";
     $forecast = $response->trf->forecast[0];
     $embed
-        ->setThumbnail($thumbnailUrl)
-        ->setTitle(
-            "きょうの天気予報"
-        )
-        ->setDescription("{$response->lv2Info->name}{$response->name}の天気予報です")
         ->setUrl("https://www.nhk.or.jp/kishou-saigai/city/weather/{$response->uid}")
+        ->setTitle("きょうの天気予報")
         ->setTimestamp($response->trf->trfAtr->reportedDate->getTimestamp())
-        ->addFieldValues("天気", "{$tp->emojiName} {$tp->distinctName}")
+        ->setThumbnail($thumbnailUrl)
+        ->setDescription("{$response->lv2Info->name}{$response->name}の天気予報です")
+        ->addFieldValues("降水確率", sprintf(":umbrella: %d %%", $forecast->rainyDay), true)
         ->addFieldValues("最高気温", sprintf(":chart_with_upwards_trend: %d ℃ (%+d ℃)", $forecast->maxTemp, $forecast->maxTempDiff), true)
         ->addFieldValues("最低気温", sprintf(":chart_with_downwards_trend: %d ℃ (%+d ℃)", $forecast->minTemp, $forecast->minTempDiff), true)
-        ->addFieldValues("降水確率", sprintf(":umbrella: %d %%", $forecast->rainyDay), true);
+        ->addFieldValues("天気", "{$tp->emojiName} {$tp->distinctName}")
+        ;
     $message
         ->setContent(sprintf("天気でーす（データは %s 時点）", $response->trf->trfAtr->reportedDate->format("H:i")))
-        ->addEmbed($embed);
+        ->addEmbed($embed)
+        ;
 
     return $message;
 }

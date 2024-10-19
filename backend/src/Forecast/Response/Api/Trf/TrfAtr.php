@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Iigau\Poster\Forecast\Response\Api;
+namespace Iigau\Poster\Forecast\Response\Api\Trf;
 
 /**
  * 3 日間の天気予報を表すクラスの属性。

@@ -11,25 +11,26 @@ if (php_sapi_name() !== 'cli') {
 require __DIR__ . "/../vendor/autoload.php";
 
 
-use Discord\Builders\CommandBuilder;
 use Discord\Discord;
 use Discord\Parts\Channel\Channel;
 use Discord\Parts\Channel\Message;
-use Discord\Parts\Interactions\Command\Command;
 use Discord\Parts\Interactions\Interaction;
 use Discord\WebSockets\Event;
 use Discord\WebSockets\Intents;
 use Iigau\Poster\Forecast\Place;
 use Iigau\Poster\Forecast\Utils;
 use Monolog\Logger;
+use Psr\Log\LoggerInterface;
 use React\EventLoop\Loop;
 use React\Promise\ExtendedPromiseInterface;
 
-use function Iigau\Poster\Forecast\buildMessage;
 
 class Forecast
 {
     readonly Place $forecast;
+    readonly Discord $discord;
+    readonly LoggerInterface $logger;
+    readonly array $availableCommands;
 
     function __construct(array $cliArgs)
     {
@@ -73,7 +74,7 @@ class Forecast
         $pdo = Utils::preparePdo($db);
 
         $botToken = Utils::getSettingValue($pdo, 'bot_token');
-        $discord = new Discord([
+        $this->discord = new Discord([
             'token' => $botToken,
             'intents' => Intents::getDefaultIntents()
                 | Intents::GUILD_MEMBERS
@@ -87,53 +88,112 @@ class Forecast
         ];
         $client = Utils::prepareHttpClient($headers);
 
-        $this->forecast = Place::create($client, $discord, $logger, $pdo, $isForced);
+        $this->logger = $logger;
+        $this->forecast = new Place($client, $this->discord, $logger, $pdo, Utils::getPlaceId($pdo), Utils::getChannelId($pdo), $isForced);
     }
 
-    function run()
+    protected function declareListeners()
     {
-        $discord = $this->forecast->getDiscord();
-        $forecast = $this->forecast;
-
-        $discord->on('init', function (Discord $discord) use ($forecast) {
-            $loop = $discord->getLoop();
-
-            $commands = [
-                ['name' => "forecast", 'description' => '天気予報をその場で取得します。',],
-                ['name' => "ping", 'description' => 'Bot に ping を送信します。',],
-            ];
-            foreach ($commands as $command) {
-                $discord->application->commands->save(new Command($discord, $command));
-            }
-
-            $loop->addPeriodicTimer(1.0, function () use ($discord, $forecast): ExtendedPromiseInterface | false {
-                if (Utils::isCurrentHour(6) || Utils::isCurrentHour(18)) {
-                    $builder = buildMessage($forecast);
-                    $attributes = [
-                        "id" => $forecast->channelId,
-                    ];
-                    $channel = new Channel($discord, $attributes);
-
-                    return $channel->sendMessage($builder);
-                }
-                return false;
-            });
-
-            $discord->on(Event::MESSAGE_CREATE, function (Message $message) use ($forecast) {
-                $forecast->getLogger()->debug("{$message->author->username}: {$message->content}");
-            });
-
-            $discord->listenCommand("forecast", function (Interaction $interaction) use ($forecast): ExtendedPromiseInterface {
-                $builder = buildMessage($forecast);
-
-                return $interaction->respondWithMessage($builder);
-            });
-
-            // $discord->listenCommand("ping", function (Interaction $interaction) use ($forecast): ExtendedPromiseInterface {
-            //     return $interaction->respondWithMessage($builder);
-            // });
+        $this->discord->listenCommand("forecast", function (Interaction $interaction): ExtendedPromiseInterface {
+            $builder = Place::buildMessage($this->forecast);
+            return $interaction->respondWithMessage($builder);
         });
 
-        $discord->run();
+        // $this->discord->listenCommand("ping", function (Interaction $interaction) : ExtendedPromiseInterface {
+        //     return $interaction->respondWithMessage();
+        // });
+    }
+
+    protected function updateGlobalCommands(\Discord\Repository\Interaction\GlobalCommandRepository $commands)
+    {
+        $cmdFiltered = $commands->map(function ($e) {
+            $ary = ["id=$e->id", "type=$e->type", /* "guild_id=$e->guild_id",  */ "name=$e->name", "description=$e->description"];
+            return implode(", ", $ary);
+        });
+
+        foreach ($cmdFiltered as $debugLine) {
+            $this->logger->warning("global command is registered: ($debugLine)");
+        }
+
+        if ($bye = $commands->get('name', 'command')) {
+            $commands->delete($bye->id);
+        }
+    }
+
+    protected function updateGuildCommands(\Discord\Repository\Guild\GuildCommandRepository $commands)
+    {
+        foreach ($this->availableCommands as $command) {
+            // if ($command = $commands->get('name', 'guild_command')) $commands->delete($command->id);
+            if (! $commands->get('name', 'guild_command')) {
+                $commands->save($command);
+            }
+        }
+    }
+
+    public function run(): void
+    {
+        $this->availableCommands =  [
+            new \Discord\Parts\Interactions\Command\Command($this->discord, [
+                'name' => "forecast",
+                'description' => '天気予報をその場で取得します。'
+            ]),
+            new \Discord\Parts\Interactions\Command\Command($this->discord, [
+                'name' => "ping",
+                'description' => 'Bot に ping を送信します。'
+            ]),
+        ];
+
+        $this->discord->on('init', function (Discord $discord) {
+            /**
+             * @see https://discordapp.com/channels/115233111977099271/234582138740146176/1182697283364593766 
+             */
+            $discord
+                ->application
+                ->commands
+                ->freshen()
+                ->done(function (\Discord\Repository\Interaction\GlobalCommandRepository $commands): void {
+                    $this->updateGlobalCommands($commands);
+                });
+
+
+            // Guildsのコマンドは即時反映されるので
+            $guildIds = $this->discord->guilds->map(fn($item) => $item->id);
+
+            foreach ($guildIds as $guildId) {
+                $discord
+                    ->guilds
+                    ->get('id', $guildId)
+                    ->commands
+                    ->freshen()
+                    ->done(function (\Discord\Repository\Guild\GuildCommandRepository $commands): void {
+                        $this->updateGuildCommands($commands);
+                    });
+                $this->logger->debug("registered commands for the guild $guildId");
+            }
+
+            $this->declareListeners();
+        });
+
+        $this->discord->run();
+
+        $loop = $this->discord->getLoop();
+
+        $loop->addPeriodicTimer(1.0, function (): ExtendedPromiseInterface | false {
+            if (Utils::isCurrentHour(6) || Utils::isCurrentHour(18)) {
+                $builder = Place::buildMessage($this->forecast);
+                $attributes = [
+                    "id" => $this->forecast->channelId,
+                ];
+                $channel = new Channel($this->discord, $attributes);
+
+                return $channel->sendMessage($builder);
+            }
+            return false;
+        });
+
+        $this->discord->on(Event::MESSAGE_CREATE, function (Message $message) {
+            $msg = "{$message->author->username}: {$message->content}";
+            $this->logger->debug($msg);
+        });
     }
 }

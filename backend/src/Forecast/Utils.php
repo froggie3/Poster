@@ -133,10 +133,73 @@ class Utils
     static function getSettingValue(PDO $pdo, string $key): string
     {
         $query = "SELECT value FROM settings WHERE key = ?";
+
         $stmt = $pdo->prepare($query);
         $stmt->execute([$key]);
         $result = $stmt->fetch(\PDO::FETCH_OBJ);
 
         return $result->value;
+    }
+
+    /**
+     * ChannelIdを取得する
+     * PlaceIdを取得する
+     */
+    static function getPlaceIdChannelId(PDO $pdo): array
+    {
+        $sql = "SELECT title AS place_name, p.name, a.channel_id AS channelId, a.place_id AS placeId, p.updated_at FROM registers AS a INNER JOIN channels AS c ON a.channel_id = c.channel_id INNER JOIN weather_places AS p ON p.place_id = a.place_id WHERE enabled = 1 LIMIT 1;";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_OBJ);
+
+        return [$result[0]->placeId, $result[0]->channelId];
+    }
+
+    /**
+     * 有効な channelId を 1 件取得する
+     */
+    static function getChannelId(PDO $pdo): string
+    {
+        $sql = "SELECT channel_id AS channelId FROM registers WHERE enabled = 1";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_OBJ);
+
+        return $result->channelId;
+    }
+
+    /**
+     * 有効な placeId を 1 件取得する
+     */
+    static function getPlaceId(PDO $pdo): string
+    {
+        $sql = "SELECT place_id AS placeId FROM registers WHERE enabled = 1";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        $result = $stmt->fetch(PDO::FETCH_OBJ);
+
+        return $result->placeId;
+    }
+
+    static function getChannels(PDO $pdo): array
+    {
+        $sql = "SELECT DISTINCT channel_id AS channelId FROM registers WHERE enabled = 1";
+
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute();
+        $result = $stmt->fetchAll(PDO::FETCH_OBJ);
+
+        return array_map(fn($r) => $r->channelId, $result);
+    }
+
+    /**
+     * JSONを整形して出力
+     */
+    static function JsonPrettyPrint(string $content): string
+    {
+        return json_encode(json_decode($content, false, JSON_THROW_ON_ERROR), JSON_PRETTY_PRINT);
     }
 }

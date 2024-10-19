@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Iigau\Poster\Forecast\Response\Api;
+namespace Iigau\Poster\Forecast\Response\Api\Srf;
 
 /**
  * 1 時間単位の天気情報。

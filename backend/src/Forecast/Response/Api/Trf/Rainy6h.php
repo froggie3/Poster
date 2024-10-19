@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Iigau\Poster\Forecast\Response\Api;
+namespace Iigau\Poster\Forecast\Response\Api\Trf;
 
 /**
  * 0-6 時、6-12 時、12-18 時、18-24 時のそれぞれ 6 時間ごとの降水確率。

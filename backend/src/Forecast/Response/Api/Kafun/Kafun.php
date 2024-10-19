@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Iigau\Poster\Forecast\Response\Api;
+namespace Iigau\Poster\Forecast\Response\Api\Kafun;
 
 /**
  * 花粉情報のクラス
