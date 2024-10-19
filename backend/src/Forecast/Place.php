@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Iigau\Poster\Forecast;
 
 use DateTimeImmutable;
+use DateTimeZone;
 use Discord\Builders\MessageBuilder;
 use Discord\Discord;
 use Discord\Parts\Embed\Embed;
@@ -91,11 +92,11 @@ class Place
      * @param string $channelId
      * @param bool $isForced
      */
-    function __construct(ClientInterface $client, Discord $discord, LoggerInterface $logger, PDO $pdo, string $placeId, string $channelId, bool $isForced)
+    function __construct(ClientInterface $client, Discord $discord, PDO $pdo, string $placeId, string $channelId, bool $isForced)
     {
         $this->client = $client;
         $this->discord = $discord;
-        $this->logger = $logger;
+        $this->logger = $discord->getLogger();
         $this->pdo = $pdo;
         $this->placeId = $placeId;
         $this->channelId = $channelId;
@@ -167,9 +168,8 @@ class Place
             $place->logger->critical($e->getMessage());
         } catch (\Exception $e) {
             $place->logger->critical($e->getMessage());
-        } finally {
-            return createMessageOnfailed($header, $message, $embed);
         }
+        return createMessageOnfailed($header, $message, $embed);
     }
 }
 
@@ -183,21 +183,19 @@ class Place
  */
 function fetch(Place $place): string
 {
-    echo "fetching\n";
-    $query = "SELECT cache FROM weather_places WHERE place_id = ? AND strftime('%s', 'now') - updated_at >= ?";
+    $logger = $place->discord->getLogger();
+    $logger->debug("fetching");
+    $query = "SELECT cache FROM weather_places WHERE place_id = ? AND strftime('%s', 'now') - updated_at < ?";
     $stmt = $place->pdo->prepare($query);
     $stmt->execute([$place->placeId, Config::FORECAST_CACHE_LIFETIME]);
 
-    // データベースから取得したコールバック関数
-    $result = $stmt->fetchAll(PDO::FETCH_FUNC, function (array $data): WeatherForecast {
-        return new WeatherForecast($data);
-    });
+    $result = $stmt->fetchAll(PDO::FETCH_OBJ);
 
-    if (isset($result->cache) && !empty($result->cache)) {
-        echo "cache available!\n";
+    if (count($result) != 0) {
+        $logger->debug("cache is available on database for place id $place->placeId");
         return $result[0]->cache;
     } else {
-        echo "no cache available, fetching...\n";
+        $logger->debug("no cache available for place id $place->placeId, fetching...");
         $query = http_build_query([
             'uid'  => $place->placeId,
             'kind' => "web",
@@ -235,7 +233,7 @@ function fetch(Place $place): string
  */
 function createMessageOnfailed(MessageHeader $header, MessageBuilder $message, Embed $embed): MessageBuilder
 {
-    $dt = new DateTimeImmutable();
+    $dt = new DateTimeImmutable("now", new DateTimeZone("Asia/Tokyo"));
     $message
         ->setContent(sprintf("%s 時点の天気予報の取得に失敗しました", $dt->format("H:i")))
         ->addEmbed(
@@ -289,7 +287,6 @@ function getEmbedPartial(MessageHeader $header, Embed $embed): Embed
         ->setAuthor("NHK NEWS WEB", $header->avatarUrl, "https://www3.nhk.or.jp/news/")
         ->setColor($colorCode)
         ->setFooter("Deployed by Yokkin", $header->authorUrl)
-        // ->setURL('')
     ;
 
     return $embed;
@@ -335,11 +332,11 @@ function createMessageOnSuccess(MessageHeader $header, MessageBuilder $message, 
         ->addFieldValues("最高気温", sprintf(":chart_with_upwards_trend: %d ℃ (%+d ℃)", $forecast->maxTemp, $forecast->maxTempDiff), true)
         ->addFieldValues("最低気温", sprintf(":chart_with_downwards_trend: %d ℃ (%+d ℃)", $forecast->minTemp, $forecast->minTempDiff), true)
         ->addFieldValues("天気", "{$tp->emojiName} {$tp->distinctName}")
-        ;
+    ;
     $message
         ->setContent(sprintf("天気でーす（データは %s 時点）", $response->trf->trfAtr->reportedDate->format("H:i")))
         ->addEmbed($embed)
-        ;
+    ;
 
     return $message;
 }
