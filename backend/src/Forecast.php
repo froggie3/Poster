@@ -10,23 +10,16 @@ if (php_sapi_name() !== 'cli') {
 
 require __DIR__ . "/../vendor/autoload.php";
 
-
-use Discord\Discord;
-use Discord\WebSockets\Event;
-use Discord\WebSockets\Intents;
 use Iigau\Poster\Cli\CliParser;
 use Iigau\Poster\Forecast\Place;
 use Iigau\Poster\Forecast\Utils;
-use Psr\Log\LoggerInterface;
-use React\EventLoop\Loop;
-use React\Promise\ExtendedPromiseInterface;
 
 
 class Forecast
 {
     readonly Place $forecast;
-    readonly Discord $discord;
-    readonly LoggerInterface $logger;
+    readonly \Discord\Discord $discord;
+    readonly \Psr\Log\LoggerInterface $logger;
     readonly array $availableCommands;
     readonly array $channels;
 
@@ -39,10 +32,10 @@ class Forecast
         $stream = Utils::prepareStreamHandler($logLevel);
         $pdo = Utils::preparePdo($cli->db);
         $botToken = Utils::getSettingValue($pdo, 'bot_token');
-        $this->discord = new Discord([
+        $this->discord = new \Discord\Discord([
             'token' => $botToken,
-            'intents' => Intents::getDefaultIntents(),
-            'loop' => Loop::get(),
+            'intents' => \Discord\WebSockets\Intents::getDefaultIntents(),
+            'loop' => \React\EventLoop\Loop::get(),
             'logger' => new \Monolog\Logger("Forecast", [$stream])
         ]);
         $headers = [
@@ -67,7 +60,7 @@ class Forecast
 
     protected function declareListeners()
     {
-        $this->discord->listenCommand("forecast", function (\Discord\Parts\Interactions\Interaction $interaction): ExtendedPromiseInterface {
+        $this->discord->listenCommand("forecast", function (\Discord\Parts\Interactions\Interaction $interaction): \React\Promise\ExtendedPromiseInterface {
             $builder = Place::buildMessage($this->forecast);
             return $interaction->respondWithMessage($builder);
         });
@@ -123,7 +116,7 @@ class Forecast
             ]),
         ];
 
-        $this->discord->on('init', function (Discord $discord) {
+        $this->discord->on('init', function (\Discord\Discord $discord) {
             $discord
                 ->application
                 ->commands
@@ -152,7 +145,7 @@ class Forecast
 
         $loop = $this->discord->getLoop();
 
-        $loop->addPeriodicTimer(1.0, function (): ExtendedPromiseInterface | false {
+        $loop->addPeriodicTimer(1.0, function (): \React\Promise\ExtendedPromiseInterface | false {
             if (Utils::isCurrentHour(6) || Utils::isCurrentHour(18)) {
                 foreach ($this->channels as $channel) {
                     $builder = Place::buildMessage($this->forecast);

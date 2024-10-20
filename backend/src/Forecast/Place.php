@@ -4,28 +4,18 @@ declare(strict_types=1);
 
 namespace Iigau\Poster\Forecast;
 
-use DateTimeImmutable;
-use DateTimeZone;
-use Discord\Builders\MessageBuilder;
-use Discord\Discord;
-use Discord\Parts\Embed\Embed;
-use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Psr7\Request;
 use Iigau\Poster\Config;
 use Iigau\Poster\Forecast\Response\Api\WeatherForecast;
 use Iigau\Poster\Forecast\Response\Database\Telop;
-use PDO;
-use Psr\Log\LoggerInterface;
 
-use Psr\Http\Client\ClientInterface;
 
 /**
  * 必要な情報とインスタンスを管理するクラス
  *
- * @property ClientInterface $client
- * @property Discord $discord
+ * @property \Psr\Http\Client\ClientInterface $client
+ * @property \Discord\Discord $discord
  * @property LoggerInterface $logger
- * @property PDO $pdo
+ * @property \PDO $pdo
  * @property string $placeId
  * @property string $channelId
  * @property bool $isForced
@@ -37,28 +27,28 @@ class Place
      *
      * @var LoggerInterface
      */
-    readonly public LoggerInterface $logger;
+    readonly public \Psr\Log\LoggerInterface $logger;
 
     /**
      * データベースハンドラー
      *
-     * @var PDO
+     * @var \PDO
      */
-    readonly public PDO $pdo;
+    readonly public \PDO $pdo;
 
     /**
      * HTTPクライアント
      *
-     * @var ClientInterface
+     * @var \Psr\Http\Client\ClientInterface
      */
-    readonly public ClientInterface $client;
+    readonly public \Psr\Http\Client\ClientInterface $client;
 
     /**
      * DiscordPHPのインスタンス
      *
      * @var Discord
      */
-    readonly Discord $discord;
+    readonly \Discord\Discord $discord;
 
     /**
      * サーバーのチャンネル
@@ -84,15 +74,15 @@ class Place
     /**
      * コンストラクタ
      *
-     * @param ClientInterface $client
+     * @param \Psr\Http\Client\ClientInterface $client
      * @param Discord $discord
      * @param LoggerInterface $logger
-     * @param PDO $pdo
+     * @param \PDO $pdo
      * @param string $placeId
      * @param string $channelId
      * @param bool $isForced
      */
-    function __construct(ClientInterface $client, Discord $discord, PDO $pdo, string $placeId, string $channelId, bool $isForced)
+    function __construct(\Psr\Http\Client\ClientInterface $client, \Discord\Discord $discord, \PDO $pdo, string $placeId, string $channelId, bool $isForced)
     {
         $this->client = $client;
         $this->discord = $discord;
@@ -103,12 +93,12 @@ class Place
         $this->isForced = $isForced;
     }
 
-    public function setPDO(PDO $pdo): void
+    public function setPDO(\PDO $pdo): void
     {
         $this->pdo = $pdo;
     }
 
-    public function getPDO(): PDO | false
+    public function getPDO(): \PDO | false
     {
         if (is_null($this->pdo)) {
             return false;
@@ -116,12 +106,12 @@ class Place
         return $this->pdo;
     }
 
-    public function setLogger(LoggerInterface $logger): void
+    public function setLogger(\Psr\Log\LoggerInterface $logger): void
     {
         $this->logger = $logger;
     }
 
-    public function getLogger(): LoggerInterface | false
+    public function getLogger(): \Psr\Log\LoggerInterface | false
     {
         if (is_null($this->logger)) {
             return false;
@@ -129,12 +119,12 @@ class Place
         return $this->logger;
     }
 
-    public function setDiscord(Discord $discord): void
+    public function setDiscord(\Discord\Discord $discord): void
     {
         $this->discord = $discord;
     }
 
-    public function getDiscord(): Discord | false
+    public function getDiscord(): \Discord\Discord | false
     {
         if (is_null($this->discord)) {
             return false;
@@ -145,13 +135,13 @@ class Place
      * メイン処理
      *
      * @param Place $place
-     * @return MessageBuilder
+     * @return \Discord\Builders\MessageBuilder
      */
-    static function buildMessage(Place $place): MessageBuilder
+    static function buildMessage(Place $place): \Discord\Builders\MessageBuilder
     {
         $header = MessageHeader::createFromDB($place->pdo);
-        $message = getMessagePartial($header, new MessageBuilder());
-        $embed = getEmbedPartial($header, new Embed($place->discord));
+        $message = getMessagePartial($header, new \Discord\Builders\MessageBuilder());
+        $embed = getEmbedPartial($header, new \Discord\Parts\Embed\Embed($place->discord));
 
         // Todo: handle HTTP error
         try {
@@ -171,7 +161,7 @@ class Place
         } catch (\PDOException $e) {
             $place->logger->critical($e->getMessage());
             $place->logger->critical($e->getTraceAsString());
-        } catch (GuzzleException $e) {
+        } catch (\GuzzleHttp\Exception\GuzzleException $e) {
             $place->logger->critical($e->getMessage());
         } catch (\JsonException $e) {
             $place->logger->critical($e->getMessage());
@@ -216,7 +206,7 @@ function shouldUpdate(Place $place): bool
         Config::FORECAST_CACHE_LIFETIME,
         $place->placeId,
     ]);
-    $result = $stmt->fetch(PDO::FETCH_OBJ);
+    $result = $stmt->fetch(\PDO::FETCH_OBJ);
     $shouldUpdate = $result->elapsedSeconds > Config::FORECAST_CACHE_LIFETIME;
     $place->logger->debug("getting cache info", [
         'placeId' => $place->placeId,
@@ -234,7 +224,7 @@ function fetchCache(Place $place): string
     $query = "SELECT cache FROM weather_places WHERE place_id = ?";
     $stmt = $place->pdo->prepare($query);
     $stmt->execute([$place->placeId]);
-    $result = $stmt->fetch(PDO::FETCH_OBJ);
+    $result = $stmt->fetch(\PDO::FETCH_OBJ);
     $content = $result->cache;
 
     return $content;
@@ -271,7 +261,7 @@ function shouldUpdateAlternative(Place $place): bool
 
     $stmt = $place->pdo->prepare($query);
     $stmt->execute([$place->placeId]);
-    $result = $stmt->fetch(PDO::FETCH_OBJ);
+    $result = $stmt->fetch(\PDO::FETCH_OBJ);
     $shouldUpdate = $result->elapsedSeconds > Config::FORECAST_CACHE_LIFETIME;
     $place->logger->debug("getting cache info", [
         'placeId' => $place->placeId,
@@ -284,13 +274,22 @@ function shouldUpdateAlternative(Place $place): bool
 
 function fetchCore(Place $place)
 {
+    // $client = new \React\Http\Browser();
+
+    // $client->get('http://www.google.com/')->then(function (\psr\Http\Message\ResponseInterface $response) {
+    //     var_dump($response->getHeaders(), (string)$response->getBody());
+    // }, function (\Exception $e) {
+    //     echo 'Error: ' . $e->getMessage() . PHP_EOL;
+    // });
+
+
     $query = http_build_query([
         'uid'  => $place->placeId,
         'kind' => "web",
         'akey' => hash("md5", "nhk"),
     ]);
     $url = "https://www.nhk.or.jp/weather-data/v1/lv3/wx/?$query";
-    $request = new Request("GET", $url);
+    $request = new \GuzzleHttp\Psr7\Request("GET", $url);
     $response = $place->client->sendRequest($request);
     $body = $response->getBody();
     $content = $body->getContents();
@@ -330,7 +329,7 @@ function fetchCore(Place $place)
  * もし結果が返ってこなかったらNHK NEWS APIにアクセスして最新の天気を取得。
  * 取得後キャッシュを保存する。
  *
- * @param ClientInterface $client HTTPクライアント
+ * @param \Psr\Http\Client\ClientInterface $client HTTPクライアント
  * @return string
  */
 function fetch(Place $place): string
@@ -345,13 +344,13 @@ function fetch(Place $place): string
  * Creates message on fail.
  *
  * @param MessageHeader $header
- * @param MessageBuilder $message
- * @param Embed $embed
- * @return MessageBuilder
+ * @param \Discord\Builders\MessageBuilder $message
+ * @param \Discord\Parts\Embed\Embed $embed
+ * @return \Discord\Builders\MessageBuilder
  */
-function createMessageOnfailed(MessageHeader $header, MessageBuilder $message, Embed $embed): MessageBuilder
+function createMessageOnfailed(MessageHeader $header, \Discord\Builders\MessageBuilder $message, \Discord\Parts\Embed\Embed $embed): \Discord\Builders\MessageBuilder
 {
-    $dt = new DateTimeImmutable("now", new DateTimeZone("Asia/Tokyo"));
+    $dt = new \DateTimeImmutable("now", new \DateTimeZone("Asia/Tokyo"));
     $message
         ->setContent(sprintf("%s 時点の天気予報の取得に失敗しました", $dt->format("H:i")))
         ->addEmbed(
@@ -367,11 +366,11 @@ function createMessageOnfailed(MessageHeader $header, MessageBuilder $message, E
 /**
  * Resolve the information from a telop number from the db.
  *
- * @param PDO $pdo,
+ * @param \PDO $pdo,
  * @param int $telopNumber
  * @return Telop
  */
-function getAssociatesFromTelop(PDO $pdo, string $telopNumber): Telop
+function getAssociatesFromTelop(\PDO $pdo, string $telopNumber): Telop
 {
     $sql = <<<SQL
     SELECT number,
@@ -386,7 +385,7 @@ function getAssociatesFromTelop(PDO $pdo, string $telopNumber): Telop
     $stmt = $pdo->prepare($sql);
 
     $stmt->execute([$telopNumber]);
-    $result = $stmt->fetchAll(PDO::FETCH_CLASS, Telop::class);
+    $result = $stmt->fetchAll(\PDO::FETCH_CLASS, Telop::class);
 
     return $result[0];
 }
@@ -397,10 +396,10 @@ function getAssociatesFromTelop(PDO $pdo, string $telopNumber): Telop
  *
  * @see https://discordapp.com/channels/115233111977099271/234582138740146176/1257752506117914704
  * @param MessageHeader $header
- * @param Embed $embed
- * @return Embed
+ * @param \Discord\Parts\Embed\Embed $embed
+ * @return \Discord\Parts\Embed\Embed
  */
-function getEmbedPartial(MessageHeader $header, Embed $embed): Embed
+function getEmbedPartial(MessageHeader $header, \Discord\Parts\Embed\Embed $embed): \Discord\Parts\Embed\Embed
 {
     // 青色（NHK天気・防災アプリの色）
     $colorCode = 0x0076d1;
@@ -417,10 +416,10 @@ function getEmbedPartial(MessageHeader $header, Embed $embed): Embed
  * Gets message partials.
  *
  * @param MessageHeader $header
- * @param MessageBuilder $message
- * @return MessageBuilder
+ * @param \Discord\Builders\MessageBuilder $message
+ * @return \Discord\Builders\MessageBuilder
  */
-function getMessagePartial(MessageHeader $header, MessageBuilder $message): MessageBuilder
+function getMessagePartial(MessageHeader $header, \Discord\Builders\MessageBuilder $message): \Discord\Builders\MessageBuilder
 {
     $message
         ->setUsername("NHK NEWS WEB")
@@ -433,13 +432,13 @@ function getMessagePartial(MessageHeader $header, MessageBuilder $message): Mess
  * メッセージを作成する
  *
  * @param MessageHeader $header
- * @param MessageBuilder $message
- * @param Embed $embed
+ * @param \Discord\Builders\MessageBuilder $message
+ * @param \Discord\Parts\Embed $embed
  * @param WeatherForecast $response JSON 形式のレスポンスをオブジェクトに変換したもの
  * @param Telop $tp DB から拾ってきたテロップの関連情報
- * @return MessageBuilder
+ * @return \Discord\Builders\MessageBuilder
  */
-function createMessageOnSuccess(MessageHeader $header, MessageBuilder $message, Embed $embed, WeatherForecast $response, Telop $tp): MessageBuilder
+function createMessageOnSuccess(MessageHeader $header, \Discord\Builders\MessageBuilder $message, \Discord\Parts\Embed\Embed $embed, WeatherForecast $response, Telop $tp): \Discord\Builders\MessageBuilder
 {
     $thumbnailUrl = "$header->baseUrl/{$tp->telopFilename}";
     $forecast = $response->trf->forecast[0];

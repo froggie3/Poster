@@ -4,8 +4,6 @@ declare(strict_types=1);
 
 namespace Iigau\Poster\Forecast;
 
-use PDO;
-
 class MessageHeader
 {
     /**
@@ -45,10 +43,10 @@ class MessageHeader
     /**
      * データベースからベースURLを取得して新しいインスタンスを作成する。
      *
-     * @param PDO データベース接続
+     * @param \PDO データベース接続
      * @return MessageHeader MessageHeader.
      */
-    static function createFromDB(PDO $pdo): self
+    static function createFromDB(\PDO $pdo): self
     {
         $baseUrl = Utils::getSettingValue($pdo, 'forecast_base_url');
         $class = new self($baseUrl);

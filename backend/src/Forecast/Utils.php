@@ -5,14 +5,6 @@ declare(strict_types=1);
 namespace Iigau\Poster\Forecast;
 
 use Iigau\Poster\Config;
-use Monolog\Formatter\LineFormatter;
-use Monolog\Handler\StreamHandler;
-use PDO;
-use GuzzleHttp\HandlerStack;
-use GuzzleHttp\Handler\CurlHandler;
-use Psr\Http\Message\RequestInterface;
-use GuzzleHttp\Client;
-use Psr\Http\Client\ClientInterface;
 
 class Utils
 {
@@ -43,14 +35,14 @@ class Utils
      * Prepare stream handler for Monolog.
      *
      * @param \Monolog\Level ログレベル
-     * @return StereamHandler StreamHandler.
+     * @return \Monolog\Handler\StreamHandler StreamHandler.
      */
-    static function prepareStreamHandler($loglevel = \Monolog\Level::Info): StreamHandler
+    static function prepareStreamHandler($loglevel = \Monolog\Level::Info): \Monolog\Handler\StreamHandler
     {
         $dateFormat = "Y-m-d\TH:i:sP";
         $output = "[%datetime%] %channel%.%level_name%: %message% %context% %extra%\n";
-        $formatter = new LineFormatter($output, $dateFormat, false, true, true);
-        $stream = new StreamHandler(CONFIG::LOGGING_PATH, $loglevel);
+        $formatter = new \Monolog\Formatter\LineFormatter($output, $dateFormat, false, true, true);
+        $stream = new \Monolog\Handler\StreamHandler(CONFIG::LOGGING_PATH, $loglevel);
         $stream->setFormatter($formatter);
 
         return $stream;
@@ -59,9 +51,9 @@ class Utils
     /**
      * A class that applies the content of command-line flags, and returns PDO instance.
      *
-     * @return PDO PDO.
+     * @return \PDO PDO.
      */
-    static function preparePdo(string $databasePath): PDO
+    static function preparePdo(string $databasePath): \PDO
     {
         $dsn = "sqlite:$databasePath";
         return new \PDO($dsn);
@@ -71,23 +63,23 @@ class Utils
      * Prepare HTTP Client.
      * Reference: https://docs.guzzlephp.org/en/stable/handlers-and-middleware.html#middleware
      *
-     * @return Client HTTP Client.
+     * @return \GuzzleHttp\Client HTTP Client.
      */
-    static function prepareHttpClient(array $headers = []): ClientInterface
+    static function prepareHttpClient(array $headers = []): \Psr\Http\Client\ClientInterface
     {
-        $stack = new HandlerStack();
-        $stack->setHandler(new CurlHandler());
+        $stack = new \GuzzleHttp\HandlerStack();
+        $stack->setHandler(new \GuzzleHttp\Handler\CurlHandler());
 
         $addHeader =
             fn($header, $value) =>
             fn(callable $handler) =>
-            fn(RequestInterface $request, array $options) =>
+            fn(\Psr\Http\Message\RequestInterface $request, array $options) =>
             $handler($request->withHeader($header, $value), $options);
 
         foreach ($headers as $header => $value) {
             $stack->push($addHeader($header, $value));
         }
-        $client = new Client([
+        $client = new \GuzzleHttp\Client([
             'timeout' => Config::CONNECTION_TIMEOUT_SECONDS,
             'handler' => $stack,
             'track_redirects' => true,
@@ -99,11 +91,11 @@ class Utils
     /**
      * 設定テーブルの中の特定のキーを探して値を取り出す
      *
-     * @param PDO Database.
+     * @param \PDO Database.
      * @param string $key キー名を探します
      * @return string string.
      */
-    static function extractTasks(PDO $pdo, string $key): string
+    static function extractTasks(\PDO $pdo, string $key): string
     {
         $query = "SELECT
             title AS channelName,
@@ -126,11 +118,11 @@ class Utils
     /**
      * 設定テーブルの中の特定のキーを探して値を取り出す
      *
-     * @param PDO Database.
+     * @param \PDO Database.
      * @param string $key キー名を探します
      * @return string string.
      */
-    static function getSettingValue(PDO $pdo, string $key): string
+    static function getSettingValue(\PDO $pdo, string $key): string
     {
         $query = "SELECT value FROM settings WHERE key = ?";
 
@@ -145,13 +137,13 @@ class Utils
      * ChannelIdを取得する
      * PlaceIdを取得する
      */
-    static function getPlaceIdChannelId(PDO $pdo): array
+    static function getPlaceIdChannelId(\PDO $pdo): array
     {
         $sql = "SELECT title AS place_name, p.name, a.channel_id AS channelId, a.place_id AS placeId, p.updated_at FROM registers AS a INNER JOIN channels AS c ON a.channel_id = c.channel_id INNER JOIN weather_places AS p ON p.place_id = a.place_id WHERE enabled = 1 LIMIT 1;";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_OBJ);
+        $result = $stmt->fetch(\PDO::FETCH_OBJ);
 
         return [$result[0]->placeId, $result[0]->channelId];
     }
@@ -159,13 +151,13 @@ class Utils
     /**
      * 有効な channelId を 1 件取得する
      */
-    static function getChannelId(PDO $pdo): string
+    static function getChannelId(\PDO $pdo): string
     {
         $sql = "SELECT channel_id AS channelId FROM registers WHERE enabled = 1";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_OBJ);
+        $result = $stmt->fetch(\PDO::FETCH_OBJ);
 
         return $result->channelId;
     }
@@ -173,24 +165,24 @@ class Utils
     /**
      * 有効な placeId を 1 件取得する
      */
-    static function getPlaceId(PDO $pdo): string
+    static function getPlaceId(\PDO $pdo): string
     {
         $sql = "SELECT place_id AS placeId FROM registers WHERE enabled = 1";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_OBJ);
+        $result = $stmt->fetch(\PDO::FETCH_OBJ);
 
         return $result->placeId;
     }
 
-    static function getChannels(PDO $pdo): array
+    static function getChannels(\PDO $pdo): array
     {
         $sql = "SELECT DISTINCT channel_id AS channelId FROM registers WHERE enabled = 1";
 
         $stmt = $pdo->prepare($sql);
         $stmt->execute();
-        $result = $stmt->fetchAll(PDO::FETCH_OBJ);
+        $result = $stmt->fetchAll(\PDO::FETCH_OBJ);
 
         return array_map(fn($r) => $r->channelId, $result);
     }
