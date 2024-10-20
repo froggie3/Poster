@@ -150,8 +150,6 @@ class Forecast
             $this->declareListeners();
         });
 
-        $this->discord->run();
-
         $loop = $this->discord->getLoop();
 
         $loop->addPeriodicTimer(1.0, function (): ExtendedPromiseInterface | false {
@@ -163,5 +161,7 @@ class Forecast
             }
             return false;
         });
+
+        $this->discord->run();
     }
 }
